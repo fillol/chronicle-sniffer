@@ -1,0 +1,6 @@
+# processor/requirements.txt - Dipendenze Python per il processore
+
+Flask>=2.0
+gunicorn>=20.0
+google-cloud-storage>=2.0
+google-cloud-logging>=3.0 # Per setup esplicito se necessario, altrimenti opzionale

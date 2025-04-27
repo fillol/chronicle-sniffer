@@ -1,0 +1,11 @@
+# terraform/terraform.tfvars.example - Rinomina in terraform.tfvars e compila
+
+gcp_project_id              = "IL_TUO_ID_PROGETTO_GCP"
+# gcp_region                  = "europe-west1" # Default
+# gcs_location                = "EU"           # Default
+# base_name                   = "wireshark-udm" # Default
+incoming_pcap_bucket_name = "NOME-UNIVOCO-BUCKET-PCAP-IN"    # Sostituisci! Deve essere globalmente univoco.
+processed_udm_bucket_name = "NOME-UNIVOCO-BUCKET-UDM-OUT"   # Sostituisci! Deve essere globalmente univoco.
+processor_cloud_run_image = "REGIONE-docker.pkg.dev/PROGETTO/REPO/IMMAGINE:TAG" # Sostituisci con l'URI della tua immagine!
+# test_vm_zone                = "europe-west1-b" # Default, verifica che esista nella tua regione
+# allow_unauthenticated_invocations = true # Default. Imposta a false per usare OIDC (più sicuro)
