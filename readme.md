@@ -1,5 +1,6 @@
 # Pipeline Ibrida Wireshark-UDM su GCP
-Questo progetto implementa una pipeline ibrida per la cattura, l'elaborazione e l'archiviazione di dati di traffico di rete in formato Unified Data Model (UDM) utilizzando Wireshark (tshark), Docker e Google Cloud Platform (GCP).
+Questo progetto implementa una pipeline ibrida per la cattura, l'elaborazione e l'archiviazione di dati di traffico di rete in formato Unified Data Model (UDM) utilizzando Wireshark (tshark), Docker e Google Cloud Platform (GCP). 
+
 La pipeline è progettata per catturare traffico di rete in un ambiente (es. on-premises o una VM dedicata), caricare i file di cattura grezzi su GCP, elaborarli in un formato strutturato (UDM) e archiviarli per analisi successive.
 
 ## Architettura
@@ -16,34 +17,35 @@ Sniffer (Cattura) -> GCS (Storage Pcap) -> Pub/Sub (Notifica) -> Cloud Run Proce
 
 ## Prerequisiti
 Prima di iniziare, assicurati di avere installato e configurato quanto segue:
-Un account Google Cloud Platform e un progetto attivo.
-Google Cloud SDK (gcloud CLI) autenticato e configurato per il tuo progetto GCP.
-Terraform (versione >= 1.1.0).
-Docker.
+- Un account Google Cloud Platform e un progetto attivo.
+- Google Cloud SDK (gcloud CLI) autenticato e configurato per il tuo progetto GCP.
+- Terraform (versione >= 1.1.0).
+- Docker.
 
-Accesso ai file sorgente di questo progetto.Struttura del ProgettoIl repository è organizzato come segue:
-.
-├── deploy.txt             # Istruzioni di deploy dettagliate (può essere integrato in questo README)
-├── sniffer/
-│   ├── Dockerfile         # Definizione del container Sniffer
-│   ├── sniffer_entrypoint.sh # Script eseguito all'avvio del container Sniffer
-│   └── gcp-key/           # **NON PUBBLICARE QUESTA DIRECTORY!** Contiene la chiave SA dello sniffer.
-├── processor/
-│   ├── Dockerfile         # Definizione del container Processor
-│   ├── processor_app.py   # Applicazione Flask del processore Cloud Run
-│   ├── json2udm_cloud.py  # Script di conversione da tshark JSON a UDM
-│   └── requirements.txt   # Dipendenze Python per il processore
-└── terraform/
-    ├── main.tf            # Definizione principale dell'infrastruttura e IAM
-    ├── variables.tf       # Variabili di input per la configurazione Terraform
-    ├── outputs.tf         # Output utili dopo il deploy Terraform
-    ├── provider.tf        # Configurazione del provider Google Cloud
-    ├── terraform.tfvars.example # Esempio del file di configurazione delle variabili (da modificare)
-    ├── terraform.tfvars   # **NON PUBBLICARE QUESTO FILE!** Contiene i valori specifici del tuo deploy.
-    ├── .terraform/        # **NON PUBBLICARE QUESTA DIRECTORY!** Contiene i plugin Terraform scaricati.
-    └── terraform.tfstate* # **NON PUBBLICARE QUESTI FILE!** Contengono lo stato del tuo deploy.
-    └── modules/           # Moduli Terraform riutilizzabili: ognuno con main.tf, variables.tf e output.tf
-        ├── cloudrun_processor/
-        ├── gcs_buckets/
-        ├── pubsub_topic/
+## Struttura del Progetto
+Il repository è organizzato come segue:
+.  
+├── deploy.txt             # Istruzioni di deploy dettagliate (può essere integrato in questo README)  
+├── sniffer/  
+│   ├── Dockerfile         # Definizione del container Sniffer  
+│   ├── sniffer_entrypoint.sh # Script eseguito all'avvio del container Sniffer  
+│   └── gcp-key/           # **NON PUBBLICARE QUESTA DIRECTORY!** Contiene la chiave SA dello sniffer.  
+├── processor/  
+│   ├── Dockerfile         # Definizione del container Processor  
+│   ├── processor_app.py   # Applicazione Flask del processore Cloud Run  
+│   ├── json2udm_cloud.py  # Script di conversione da tshark JSON a UDM  
+│   └── requirements.txt   # Dipendenze Python per il processore  
+└── terraform/  
+    ├── main.tf            # Definizione principale dell'infrastruttura e IAM  
+    ├── variables.tf       # Variabili di input per la configurazione Terraform  
+    ├── outputs.tf         # Output utili dopo il deploy Terraform  
+    ├── provider.tf        # Configurazione del provider Google Cloud  
+    ├── terraform.tfvars.example # Esempio del file di configurazione delle variabili (da modificare)  
+    ├── terraform.tfvars   # **NON PUBBLICARE QUESTO FILE!** Contiene i valori specifici del tuo deploy.  
+    ├── .terraform/        # **NON PUBBLICARE QUESTA DIRECTORY!** Contiene i plugin Terraform scaricati.  
+    ├── terraform.tfstate* # **NON PUBBLICARE QUESTI FILE!** Contengono lo stato del tuo deploy.  
+    └── modules/           # Moduli Terraform riutilizzabili: ognuno con main.tf, variables.tf e output.tf  
+        ├── cloudrun_processor/  
+        ├── gcs_buckets/  
+        ├── pubsub_topic/  
         └── test_generator_vm/
