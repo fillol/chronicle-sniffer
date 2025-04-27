@@ -1,0 +1,21 @@
+# docker-compose.yaml per avviare il container dello sniffer on-premises
+
+services:
+  sniffer:
+    build: .
+    container_name: wireshark-sniffer
+    restart: unless-stopped
+
+    # Configurazione di rete e privilegi necessari per tshark
+    network_mode: "host" # Usa la rete dell'host (equivalente a --network host)
+    cap_add:
+      - NET_ADMIN # Permessi per gestire interfacce di rete
+      - NET_RAW   # Permessi per leggere pacchetti raw
+
+    # Variabili d'ambiente lette da un file .env nella stessa directory
+    env_file:
+      - .env
+
+    # Assicurati che la directory ./sniffer/gcp-key esista e contenga 'key.json'
+    volumes:
+      - ./sniffer/gcp-key:/app/gcp-key:ro # Monta la chiave in sola lettura
