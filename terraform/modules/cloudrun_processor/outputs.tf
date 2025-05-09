@@ -4,8 +4,8 @@ output "service_name" {
 }
 
 output "service_location" {
-    description = "Location del servizio Cloud Run creato."
-    value       = google_cloud_run_v2_service.processor.location
+  description = "Location del servizio Cloud Run creato."
+  value       = google_cloud_run_v2_service.processor.location
 }
 
 output "service_url" {

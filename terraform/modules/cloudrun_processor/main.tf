@@ -16,7 +16,7 @@ resource "google_cloud_run_v2_service" "processor" {
         container_port = 8080 # Porta su cui l'app Flask ascolta
       }
       env { # Imposta variabili d'ambiente base
-        name = "PORT"
+        name  = "PORT"
         value = "8080"
       }
       dynamic "env" {

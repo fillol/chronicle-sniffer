@@ -41,7 +41,7 @@ variable "service_account_email" {
 variable "access_scopes" {
   description = "Scope di accesso per la VM."
   type        = list(string)
-  default     = [
+  default = [
     "[https://www.googleapis.com/auth/devstorage.read_only](https://www.googleapis.com/auth/devstorage.read_only)",
     "[https://www.googleapis.com/auth/logging.write](https://www.googleapis.com/auth/logging.write)",
     "[https://www.googleapis.com/auth/monitoring.write](https://www.googleapis.com/auth/monitoring.write)",

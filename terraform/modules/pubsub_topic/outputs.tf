@@ -4,6 +4,6 @@ output "topic_id" {
 }
 
 output "topic_name" {
-    description = "Nome breve del topic Pub/Sub creato."
-    value       = google_pubsub_topic.main_topic.name
+  description = "Nome breve del topic Pub/Sub creato."
+  value       = google_pubsub_topic.main_topic.name
 }

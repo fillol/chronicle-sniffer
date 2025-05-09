@@ -14,11 +14,11 @@ module "pubsub_topic" {
 }
 
 module "cloudrun_processor" {
-  source          = "./modules/cloudrun_processor"
-  project_id      = var.gcp_project_id
-  region          = var.gcp_region
-  service_name    = "${var.base_name}-processor"
-  image_uri       = var.processor_cloud_run_image
+  source       = "./modules/cloudrun_processor"
+  project_id   = var.gcp_project_id
+  region       = var.gcp_region
+  service_name = "${var.base_name}-processor"
+  image_uri    = var.processor_cloud_run_image
   # Passa i nomi dei bucket come variabili d'ambiente al container
   env_vars = {
     INCOMING_BUCKET = module.gcs_buckets.incoming_pcap_bucket_id
@@ -83,17 +83,17 @@ resource "google_cloud_run_v2_service" "processor_service_update_sa" {
     # Terraform farà il merge con la configurazione definita nel modulo
     containers {
       image = var.processor_cloud_run_image # Deve corrispondere a quella nel modulo
-       env {
-          name = "INCOMING_BUCKET"
-          value = module.gcs_buckets.incoming_pcap_bucket_id
+      env {
+        name  = "INCOMING_BUCKET"
+        value = module.gcs_buckets.incoming_pcap_bucket_id
       }
       env {
-          name = "OUTPUT_BUCKET"
-          value = module.gcs_buckets.processed_udm_bucket_id
+        name  = "OUTPUT_BUCKET"
+        value = module.gcs_buckets.processed_udm_bucket_id
       }
       env {
-          name = "GCP_PROJECT_ID"
-          value = var.gcp_project_id
+        name  = "GCP_PROJECT_ID"
+        value = var.gcp_project_id
       }
     }
   }
@@ -135,7 +135,7 @@ resource "google_project_iam_member" "runner_logging_writer" {
 resource "google_cloud_run_v2_service_iam_member" "allow_unauthenticated" {
   count    = var.allow_unauthenticated_invocations ? 1 : 0
   project  = var.gcp_project_id
-  name     = module.cloudrun_processor.service_name # Usa il nome dall'output del modulo
+  name     = module.cloudrun_processor.service_name     # Usa il nome dall'output del modulo
   location = module.cloudrun_processor.service_location # Usa la location dall'output
   role     = "roles/run.invoker"
   member   = "allUsers"
@@ -176,13 +176,13 @@ resource "google_pubsub_subscription" "processor_subscription" {
 
     # Configura OIDC se NON si usa allow_unauthenticated_invocations
     dynamic "oidc_token" {
-       for_each = !var.allow_unauthenticated_invocations ? [1] : []
-       content {
-         # Il Service Account che Pub/Sub userà per generare il token OIDC
-         # Può essere il SA di Cloud Run stesso o un SA dedicato per Pub/Sub push
-         service_account_email = google_service_account.cloud_run_sa.email
-         audience              = module.cloudrun_processor.service_url # L'audience DEVE corrispondere all'URL del servizio
-       }
+      for_each = !var.allow_unauthenticated_invocations ? [1] : []
+      content {
+        # Il Service Account che Pub/Sub userà per generare il token OIDC
+        # Può essere il SA di Cloud Run stesso o un SA dedicato per Pub/Sub push
+        service_account_email = google_service_account.cloud_run_sa.email
+        audience              = module.cloudrun_processor.service_url # L'audience DEVE corrispondere all'URL del servizio
+      }
     }
   }
 
