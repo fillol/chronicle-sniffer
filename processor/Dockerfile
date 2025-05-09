@@ -4,12 +4,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tshark \
     && rm -rf /var/lib/apt/lists/*
 
-COPY processor/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 WORKDIR /app
-COPY processor/processor_app.py .
-COPY processor/json2udm_cloud.py .
+COPY processor_app.py .
+COPY json2udm_cloud.py .
 
 # Imposta logging non bufferizzato per Cloud Logging
 ENV PYTHONUNBUFFERED=1
