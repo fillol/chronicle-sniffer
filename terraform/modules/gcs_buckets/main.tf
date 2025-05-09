@@ -1,5 +1,3 @@
-# terraform/modules/gcs_buckets/main.tf
-
 resource "google_storage_bucket" "incoming_pcaps" {
   project       = var.project_id # Assicurati che il project ID sia passato o inferito correttamente
   name          = var.incoming_pcap_bucket_name

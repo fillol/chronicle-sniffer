@@ -1,5 +1,3 @@
-# processor/Dockerfile - Immagine per il Processore Cloud Run
-
 FROM python:3.9-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,6 +14,5 @@ COPY processor/json2udm_cloud.py .
 # Imposta logging non bufferizzato per Cloud Logging
 ENV PYTHONUNBUFFERED=1
 
-# Comando per avviare l'applicazione con Gunicorn, ascolta sulla porta 8080 (default Cloud Run)
-# Timeout aumentato per elaborazione pcap
+# Comando per avviare l'applicazione con Gunicorn, ascolta sulla porta 8080 (default Cloud Run), Timeout aumentato per elaborazione pcap
 CMD exec gunicorn --bind :${PORT:-8080} --workers 1 --threads 8 --timeout 600 processor_app:app

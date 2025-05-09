@@ -1,5 +1,3 @@
-# terraform/outputs.tf
-
 output "incoming_pcap_bucket_id" {
   description = "ID del bucket GCS per i pcap in ingresso."
   value       = module.gcs_buckets.incoming_pcap_bucket_id

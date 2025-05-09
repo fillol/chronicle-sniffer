@@ -1,4 +1,4 @@
-# terraform/terraform.tfvars.example - Rinomina in terraform.tfvars e compila
+# Rinomina in terraform.tfvars e compila
 
 gcp_project_id              = "IL_TUO_ID_PROGETTO_GCP"
 # gcp_region                  = "europe-west1" # Default

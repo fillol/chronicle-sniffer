@@ -1,4 +1,4 @@
-# processor/processor_app.py - Applicazione Flask per Cloud Run (Invariata dalla mia proposta originale)
+# processor/processor_app.py - Applicazione Flask per Cloud Run (Sfrutta il mio progetto cybersecurity)
 
 import base64
 import json

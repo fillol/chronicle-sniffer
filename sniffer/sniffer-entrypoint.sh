@@ -1,7 +1,7 @@
 #!/bin/bash
 # sniffer/sniffer_entrypoint.sh - Cattura, Upload GCS, Notifica Pub/Sub
 
-echo "--- Sniffer Container Starting (Hybrid v2.1) ---"
+echo "--- Sniffer Container Starting ---"
 
 # --- Configuration (Environment Variables) ---
 GCP_PROJECT_ID="${GCP_PROJECT_ID}" # Necessario per gcloud pubsub
@@ -10,7 +10,7 @@ PUBSUB_TOPIC_ID="${PUBSUB_TOPIC_ID}" # ID completo del topic (projects/PROJECT_I
 GCP_KEY_FILE="${GCP_KEY_FILE:-/app/gcp-key/key.json}" # Percorso chiave SA
 
 # tshark options
-INTERFACE="" # Verrà rilevata automaticamente
+INTERFACE="" # Rilevata automaticamente
 ROTATE="${ROTATE:-"-b filesize:10240 -b duration:60"}" # Default: 10MB o 60s
 LIMITS="${LIMITS:-}" # Nessun limite di default
 CAPTURE_DIR="/app/captures"
@@ -85,7 +85,7 @@ while kill -0 $TSHARK_PID 2>/dev/null; do
 
         echo "[$(date)] Detected completed file: $base_pcap_file"
 
-        # Upload to GCS using gcloud storage (preferred over gsutil in newer SDK images)
+        # Upload to GCS using gcloud storage
         echo "[$(date)] Uploading $base_pcap_file to gs://${INCOMING_BUCKET}/..."
         if gcloud storage cp "$pcap_file" "gs://${INCOMING_BUCKET}/" --project "$GCP_PROJECT_ID"; then
             echo "[$(date)] Upload successful."

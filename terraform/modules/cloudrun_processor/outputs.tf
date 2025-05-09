@@ -1,5 +1,3 @@
-# terraform/modules/cloudrun_processor/outputs.tf
-
 output "service_name" {
   description = "Nome del servizio Cloud Run creato."
   value       = google_cloud_run_v2_service.processor.name

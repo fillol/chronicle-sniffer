@@ -1,9 +1,5 @@
-# terraform/modules/cloudrun_processor/main.tf
-
-# Nota: Questo modulo crea solo il servizio base.
-# L'associazione del Service Account e le policy IAM (invoker)
-# sono gestite nel main.tf principale per evitare dipendenze circolari
-# e centralizzare la gestione IAM.
+# Questo modulo crea solo il servizio base
+# L'associazione del Service Account e le policy IAM (invoker) sono gestite nel main.tf principale
 
 resource "google_cloud_run_v2_service" "processor" {
   project  = var.project_id

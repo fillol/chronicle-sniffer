@@ -1,4 +1,4 @@
-# processor/json2udm_cloud.py - Script di conversione UDM (parte della mia proposta originale)
+# processor/json2udm_cloud.py - Script di conversione UDM (parte della mia proposta per cybersecurity)
 
 import json
 import sys

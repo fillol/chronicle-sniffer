@@ -1,5 +1,3 @@
-# terraform/modules/test_generator_vm/variables.tf
-
 variable "project_id" {
   description = "ID Progetto GCP."
   type        = string

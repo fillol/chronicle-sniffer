@@ -1,5 +1,3 @@
-# terraform/modules/gcs_buckets/variables.tf
-
 variable "project_id" {
   description = "ID Progetto GCP (necessario se non inferito dal provider)."
   type        = string

@@ -1,5 +1,3 @@
-# terraform/main.tf - File principale che orchestra moduli e IAM
-
 # --- Moduli ---
 
 module "gcs_buckets" {

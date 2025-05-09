@@ -1,5 +1,3 @@
-# terraform/modules/cloudrun_processor/variables.tf
-
 variable "project_id" {
   description = "ID Progetto GCP."
   type        = string

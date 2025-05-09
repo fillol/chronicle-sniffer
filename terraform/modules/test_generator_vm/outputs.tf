@@ -1,5 +1,3 @@
-# terraform/modules/test_generator_vm/outputs.tf
-
 output "vm_name" {
   description = "Nome della VM creata."
   value       = google_compute_instance.generator.name

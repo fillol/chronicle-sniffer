@@ -1,5 +1,3 @@
-# terraform/modules/test_generator_vm/main.tf
-
 resource "google_compute_instance" "generator" {
   project      = var.project_id
   name         = var.vm_name
