@@ -38,16 +38,27 @@ variable "service_account_email" {
   default     = null
 }
 
-variable "access_scopes" {
-  description = "Scope di accesso per la VM."
+variable "disk_type" {
+  description = "Tipo di disco per la VM (es. pd-standard, pd-ssd)."
+  type        = string
+  default     = "pd-standard"
+}
+variable "startup_script" {
+  description = "Script di avvio per la VM."
+  type        = string
+  default     = <<-EOT
+    #!/bin/bash
+    apt-get update
+    apt-get install -y --no-install-recommends tcpdump tcpreplay git curl wget
+    echo "Startup script finished. Load pcap to /tmp/sample.pcap and run tcpreplay manually."
+  EOT
+}
+variable "ssh_source_ranges" {
+  description = "Lista di CIDR IP permessi per SSH."
   type        = list(string)
-  default = [
-    "[https://www.googleapis.com/auth/devstorage.read_only](https://www.googleapis.com/auth/devstorage.read_only)",
-    "[https://www.googleapis.com/auth/logging.write](https://www.googleapis.com/auth/logging.write)",
-    "[https://www.googleapis.com/auth/monitoring.write](https://www.googleapis.com/auth/monitoring.write)",
-    "[https://www.googleapis.com/auth/servicecontrol](https://www.googleapis.com/auth/servicecontrol)",
-    "[https://www.googleapis.com/auth/service.management.readonly](https://www.googleapis.com/auth/service.management.readonly)",
-    "[https://www.googleapis.com/auth/trace.append](https://www.googleapis.com/auth/trace.append)",
-    "[https://www.googleapis.com/auth/cloud-platform](https://www.googleapis.com/auth/cloud-platform)" # Scope ampio, restringi se necessario
-  ]
+  default     = ["0.0.0.0/0"] # Default insicuro, da sovrascrivere!
+}
+variable "access_scopes" {
+  type    = list(string)
+  default = ["https://www.googleapis.com/auth/cloud-platform"]
 }

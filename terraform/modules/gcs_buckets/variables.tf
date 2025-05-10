@@ -1,7 +1,6 @@
 variable "project_id" {
-  description = "ID Progetto GCP (necessario se non inferito dal provider)."
+  description = "ID Progetto GCP."
   type        = string
-  default     = null # Permette al provider di inferirlo se configurato
 }
 
 variable "location" {
@@ -17,4 +16,16 @@ variable "incoming_pcap_bucket_name" {
 variable "processed_udm_bucket_name" {
   description = "Nome per il bucket dei file UDM processati."
   type        = string
+}
+
+variable "enable_versioning" {
+  description = "Se true, abilita il versioning sui bucket."
+  type        = bool
+  default     = true
+}
+
+variable "cmek_key_name" {
+  description = "Nome della chiave KMS per CMEK (opzionale)."
+  type        = string
+  default     = ""
 }

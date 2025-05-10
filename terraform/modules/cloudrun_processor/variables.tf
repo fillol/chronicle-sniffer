@@ -24,8 +24,26 @@ variable "env_vars" {
   default     = {}
 }
 
-# variable "service_account_email" {
-#   description = "Email del Service Account da associare al servizio."
-#   type        = string
-#   # Non usato direttamente qui, ma passato dal main.tf se necessario altrove
-# }
+variable "service_account_email" {
+  description = "Email del Service Account da associare al servizio Cloud Run."
+  type        = string
+}
+variable "env_vars" {
+  type    = map(string)
+  default = {}
+}
+variable "max_concurrency" {
+  description = "Massima concorrenza per istanza."
+  type        = number
+  default     = 80 # Default di Cloud Run
+}
+variable "cpu_limit" {
+  description = "Limite CPU per istanza."
+  type        = string
+  default     = "1000m"
+}
+variable "memory_limit" {
+  description = "Limite memoria per istanza."
+  type        = string
+  default     = "512Mi"
+}

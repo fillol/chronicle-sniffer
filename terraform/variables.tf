@@ -1,5 +1,5 @@
 variable "gcp_project_id" {
-  description = "L'ID del tuo progetto Google Cloud."
+  description = "L'ID del progetto Google Cloud."
   type        = string
 }
 
@@ -10,7 +10,7 @@ variable "gcp_region" {
 }
 
 variable "gcs_location" {
-  description = "La location per i bucket GCS (può essere una regione o multi-regione)."
+  description = "La location per i bucket GCS."
   type        = string
   default     = "EU"
 }
@@ -18,35 +18,68 @@ variable "gcs_location" {
 variable "base_name" {
   description = "Prefisso per i nomi delle risorse per unicità."
   type        = string
-  default     = "wireshark-udm"
+  default     = "chronicle-sniffer"
 }
 
 variable "incoming_pcap_bucket_name" {
   description = "Nome univoco globale per il bucket GCS dei pcap in ingresso."
   type        = string
-  # default = "wireshark-incoming-pcaps"
 }
 
 variable "processed_udm_bucket_name" {
   description = "Nome univoco globale per il bucket GCS dei file UDM processati."
   type        = string
-  # default = "wireshark-processed-udm"
 }
 
 variable "processor_cloud_run_image" {
   description = "L'URI completo dell'immagine Docker per il servizio Cloud Run Processor."
   type        = string
-  # default = "REGION-docker.pkg.dev/PROJECT_ID/REPO/IMAGE:TAG"
 }
 
 variable "test_vm_zone" {
-  description = "La zona GCP per la VM di test (deve essere nella stessa regione di var.gcp_region)."
+  description = "La zona GCP per la VM di test."
   type        = string
-  default     = "europe-west8-b"
+  default     = "europe-west8-a"
 }
 
 variable "allow_unauthenticated_invocations" {
-  description = "Se true, permette invocazioni non autenticate a Cloud Run (più semplice per Pub/Sub push senza OIDC, meno sicuro)."
+  description = "Se true, permette invocazioni non autenticate a Cloud Run."
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "cloud_run_max_concurrency" {
+  description = "Massima concorrenza per istanza Cloud Run."
+  type        = number
+  default     = 10 # Più plumone del default (80)
+}
+
+variable "cloud_run_cpu" {
+  description = "CPU per istanza Cloud Run (es. 1000m per 1 vCPU)."
+  type        = string
+  default     = "1000m"
+}
+
+variable "cloud_run_memory" {
+  description = "Memoria per istanza Cloud Run (es. 512Mi)."
+  type        = string
+  default     = "512Mi"
+}
+
+variable "ssh_source_ranges" {
+  description = "Lista di CIDR IP permessi per SSH alla VM di test."
+  type        = list(string)
+  default     = ["0.0.0.0/0"] # Lasciato per semplicità di test, MA DA CAMBIARE!
+}
+
+variable "enable_bucket_versioning" {
+  description = "Se true, abilita il versioning sui bucket GCS."
+  type        = bool
+  default     = false
+}
+
+variable "cmek_key_name" {
+  description = "Nome della chiave KMS per la crittografia CMEK dei bucket (lasciare vuoto per usare Google-managed keys)."
+  type        = string
+  default     = "" # Opzionale: projects/PROJECT_ID/locations/LOCATION/keyRings/KEYRING_NAME/cryptoKeys/KEY_NAME
 }
