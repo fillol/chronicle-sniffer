@@ -34,6 +34,6 @@ resource "google_compute_firewall" "allow_ssh_vm" { # Nome cambiato per evitare 
     protocol = "tcp"
     ports    = ["22"]
   }
-  target_tags   = [var.vm_name] # Applica solo a questa VM
+  target_tags   = [var.vm_name]         # Applica solo a questa VM
   source_ranges = var.ssh_source_ranges # USA LA VARIABILE PER GLI IP PERMESSI
 }

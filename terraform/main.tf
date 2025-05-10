@@ -33,11 +33,11 @@ module "pubsub_topic" {
 }
 
 module "cloudrun_processor" {
-  source              = "./modules/cloudrun_processor"
-  project_id          = var.gcp_project_id
-  region              = var.gcp_region
-  service_name        = "${var.base_name}-processor"
-  image_uri           = var.processor_cloud_run_image
+  source                = "./modules/cloudrun_processor"
+  project_id            = var.gcp_project_id
+  region                = var.gcp_region
+  service_name          = "${var.base_name}-processor"
+  image_uri             = var.processor_cloud_run_image
   service_account_email = google_service_account.cloud_run_sa.email # Passa l'email del SA
   env_vars = {
     INCOMING_BUCKET = module.gcs_buckets.incoming_pcap_bucket_id
@@ -90,40 +90,40 @@ resource "google_storage_bucket_iam_member" "runner_gcs_reader" {
 
 # --- Cloud Run Invocation Permissions ---
 resource "google_cloud_run_v2_service_iam_member" "allow_unauthenticated" {
-  count    = var.allow_unauthenticated_invocations ? 1 : 0
-  project  = var.gcp_project_id
-  name     = module.cloudrun_processor.service_name
-  location = module.cloudrun_processor.service_location
-  role     = "roles/run.invoker"
-  member   = "allUsers"
+  count      = var.allow_unauthenticated_invocations ? 1 : 0
+  project    = var.gcp_project_id
+  name       = module.cloudrun_processor.service_name
+  location   = module.cloudrun_processor.service_location
+  role       = "roles/run.invoker"
+  member     = "allUsers"
   depends_on = [module.cloudrun_processor]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "allow_pubsub_oidc" {
-  count    = !var.allow_unauthenticated_invocations ? 1 : 0
-  project  = var.gcp_project_id
-  name     = module.cloudrun_processor.service_name
-  location = module.cloudrun_processor.service_location
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
+  count      = !var.allow_unauthenticated_invocations ? 1 : 0
+  project    = var.gcp_project_id
+  name       = module.cloudrun_processor.service_name
+  location   = module.cloudrun_processor.service_location
+  role       = "roles/run.invoker"
+  member     = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
   depends_on = [module.cloudrun_processor]
 }
 
 # --- Pub/Sub Subscription ---
 resource "google_pubsub_subscription" "processor_subscription" {
-  project = var.gcp_project_id
-  name    = "${var.base_name}-processor-sub"
-  topic   = module.pubsub_topic.topic_id
+  project              = var.gcp_project_id
+  name                 = "${var.base_name}-processor-sub"
+  topic                = module.pubsub_topic.topic_id
   ack_deadline_seconds = 600
 
   push_config {
     push_endpoint = module.cloudrun_processor.service_url
     dynamic "oidc_token" {
-       for_each = !var.allow_unauthenticated_invocations ? [1] : []
-       content {
-         service_account_email = google_service_account.cloud_run_sa.email
-         audience              = module.cloudrun_processor.service_url
-       }
+      for_each = !var.allow_unauthenticated_invocations ? [1] : []
+      content {
+        service_account_email = google_service_account.cloud_run_sa.email
+        audience              = module.cloudrun_processor.service_url
+      }
     }
   }
   depends_on = [

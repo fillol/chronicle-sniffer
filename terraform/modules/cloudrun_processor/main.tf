@@ -7,7 +7,7 @@ resource "google_cloud_run_v2_service" "processor" {
     service_account = var.service_account_email # Associa il SA passato come variabile
 
     max_instance_request_concurrency = var.max_concurrency
-    timeout = "600s" # Mantenuto a 10 minuti
+    timeout                          = "600s" # Mantenuto a 10 minuti
 
     containers {
       image = var.image_uri
@@ -38,7 +38,7 @@ resource "google_cloud_run_v2_service" "processor" {
         timeout_seconds       = 5
         period_seconds        = 10
         failure_threshold     = 3
-        http_get { # Assumendo che la tua app risponda a '/' con 2xx se sta bene
+        http_get {   # Assumendo che la tua app risponda a '/' con 2xx se sta bene
           path = "/" # Modifica se hai un health check endpoint specifico (es. /healthz)
           port = 8080
         }
