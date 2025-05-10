@@ -52,3 +52,21 @@ Il repository è organizzato come segue:
         ├── pubsub_topic/
         └── test_generator_vm/
 ```
+
+## Usage
+
+```bash
+# 1. Autentica il tuo account utente con gcloud
+gcloud auth login
+
+# 2. Imposta il progetto GCP predefinito
+gcloud config set project gruppo-2
+
+# 3. Crea le Application Default Credentials per Terraform e altre applicazioni
+gcloud auth application-default login
+
+# 4. Configura Docker per autenticarsi con Artifact Registry
+gcloud auth configure-docker europe-west8-docker.pkg.dev
+```
+
+Dopo aver completato questi passaggi: `terraform init`, `terraform plan` e `terraform apply`
