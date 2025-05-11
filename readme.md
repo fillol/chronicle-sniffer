@@ -1,9 +1,8 @@
 # Chronicle-sniffer: Wireshark-to-UDM Pipeline on GCP
 
-**Repository:** [wireshark-pipeline-hybrid](https://github.com/fillol/wireshark-pipeline-hybrid)
-**Author:** Filippo Lucchesi (@fillol)
-**Course:** Scalable and Reliable Services, University of Bologna
-**Based on:** [Wireshark-to-Chronicle-Pipeline](https://github.com/fillol/Wireshark-to-Chronicle-Pipeline)
+**Author:** [Filippo Lucchesi](https://github.com/fillol)  
+**Course:** [Scalable and Reliable Services](https://www.unibo.it/en/study/course-units-transferable-skills-moocs/course-unit-catalogue/course-unit/2024/472686), [University of Bologna](https://www.unibo.it)  
+**Based on:** [Wireshark-to-Chronicle-Pipeline](https://github.com/fillol/Wireshark-to-Chronicle-Pipeline)  
 
 ## Key Features
 
