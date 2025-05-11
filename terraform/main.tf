@@ -43,7 +43,7 @@ module "cloudrun_processor" {
     INCOMING_BUCKET = module.gcs_buckets.incoming_pcap_bucket_id
     OUTPUT_BUCKET   = module.gcs_buckets.processed_udm_bucket_id
     GCP_PROJECT_ID  = var.gcp_project_id
-    PORT            = "8080"
+    #PORT            = "8080" Error: Error creating Service: googleapi: Error 400: template.containers[0].env: The following reserved env names were provided: PORT, PORT. These values are automatically set by the system.
   }
   max_concurrency = var.cloud_run_max_concurrency
   cpu_limit       = var.cloud_run_cpu

@@ -13,10 +13,10 @@ resource "google_cloud_run_v2_service" "processor" {
       image = var.image_uri
       ports { container_port = 8080 } # La porta su cui l'app ascolta
 
-      env {
-        name  = "PORT"
-        value = "8080"
-      } # Assicura che PORT sia definita
+      #env { Error: Error creating Service: googleapi: Error 400: template.containers[0].env: The following reserved env names were provided: PORT, PORT. These values are automatically set by the system.
+      #  name  = "PORT"
+      #  value = "8080"
+      #} # Assicura che PORT sia definita
       dynamic "env" {
         for_each = var.env_vars
         content {
