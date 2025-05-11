@@ -6,7 +6,7 @@ import os
 import subprocess
 import tempfile
 import logging
-from flask import Flask, request, Response # Aggiunto Response
+from flask import Flask, request, Response, jsonify
 
 from google.cloud import storage
 from google.cloud import logging as cloud_logging
@@ -42,6 +42,12 @@ try:
 except Exception as e:
     logging.error(f"Failed to initialize Storage client: {e}")
     storage_client = None
+
+# --- Health Check Route ---
+@app.route('/', methods=['GET'])
+def health_check():
+    """Health check endpoint."""
+    return jsonify(status="ok"), 200
 
 # --- Route for Pub/Sub Push ---
 @app.route('/', methods=['POST'])
