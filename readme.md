@@ -1,72 +1,252 @@
-# Pipeline Ibrida Wireshark-UDM su GCP
-Questo progetto implementa una pipeline ibrida per la cattura, l'elaborazione e l'archiviazione di dati di traffico di rete in formato Unified Data Model (UDM) utilizzando Wireshark (tshark), Docker e Google Cloud Platform (GCP). 
+# Chronicle-sniffer: Wireshark-to-UDM Pipeline on GCP
 
-La pipeline è progettata per catturare traffico di rete in un ambiente (es. on-premises o una VM dedicata), caricare i file di cattura grezzi su GCP, elaborarli in un formato strutturato (UDM) e archiviarli per analisi successive.
+**Repository:** [wireshark-pipeline-hybrid](https://github.com/fillol/wireshark-pipeline-hybrid)
+**Author:** Filippo Lucchesi (@fillol)
+**Course:** Scalable and Reliable Services, University of Bologna
+**Based on:** [Wireshark-to-Chronicle-Pipeline](https://github.com/fillol/Wireshark-to-Chronicle-Pipeline)
 
-## Architettura
-La pipeline è composta dai seguenti componenti principali:
-- Sniffer: Un'applicazione containerizzata (Docker) basata su tshark che cattura il traffico di rete, ruota i file di cattura (.pcap), li carica in un bucket Google Cloud Storage e notifica un topic Pub/Sub.
-- Google Cloud Storage (GCS): Utilizzato per archiviare i file .pcap grezzi in ingresso e i file .udm.json processati in uscita.
-- Pub/Sub: Un servizio di messaggistica che riceve notifiche dallo Sniffer ogni volta che un nuovo file .pcap è disponibile.
-- Cloud Run Processor: Un servizio serverless containerizzato (Docker) che si sottoscrive al topic Pub/Sub. Quando riceve una notifica, scarica il file .pcap corrispondente da GCS, lo converte in JSON usando tshark, trasforma il JSON in formato UDM usando uno script Python e carica il file .udm.json risultante in un altro bucket GCS.
-- Terraform: Utilizzato per definire e deployare automaticamente tutta l'infrastruttura GCP necessaria (bucket GCS, topic Pub/Sub, servizio Cloud Run, Service Account e policy IAM).
-- VM di Test (Opzionale): Una macchina virtuale su GCP creata da Terraform, preconfigurata con strumenti come tcpdump e tcpreplay per generare traffico di test.
+## Key Features
 
-## Il flusso di lavoro è:
-Sniffer (Cattura) -> GCS (Storage Pcap) -> Pub/Sub (Notifica) -> Cloud Run Processor (Scarica Pcap, Converte in UDM) -> GCS (Storage UDM)
+* **On‑Premises/Edge Sniffer**: Dockerized `tshark` capture with automatic PCAP rotation, upload to GCS, and Pub/Sub notification.
+* **Serverless Processor**: Cloud Run service that orchestrates PCAP-to-UDM transformation.
+* **Core Component (`json2udm_cloud.py`)**: Central Python script that maps raw `tshark` JSON into the Unified Data Model (UDM), forming the project’s analytical heart.
+* **Scalable, Resilient Design**: Decoupled Pub/Sub-driven flow with dead-letter support, Cloud Run health probes, Terraform-managed IaC.
+* **Full Cloud Offload**: Eliminates heavy client‑side computation; all parsing and enrichment occur server‑side for minimal on‑prem hardware requirements.
+* **Secure and Observable**: IAM least‑privilege, OIDC‑authenticated Cloud Run, structured logging, and custom monitoring dashboard.
 
-## Prerequisiti
-Prima di iniziare, assicurati di avere installato e configurato quanto segue:
-- Un account Google Cloud Platform e un progetto attivo.
-- Google Cloud SDK (gcloud CLI) autenticato e configurato per il tuo progetto GCP.
-- Terraform (versione >= 1.1.0).
-- Docker.
+---
 
-## Struttura del Progetto
-Il repository è organizzato come segue:
+## Architecture Overview
+
+A distributed, event‑driven pipeline leveraging GCP managed services:
+
+1. **Capture & Upload**:
+
+   * Sniffer container runs `tshark` on the selected network interface, rotating PCAPs by size/time.
+   * Completed PCAPs are uploaded to GCS (`incoming-pcaps`), then Pub/Sub notification is published.
+2. **Trigger & Process**:
+
+   * Pub/Sub push subscription invokes the Cloud Run Processor (OIDC‑secured).
+   * Processor downloads the PCAP, uses `tshark -T json`, then executes the **`json2udm_cloud.py`** script to emit UDM‑formatted JSON.
+   * Resulting UDM events are stored in GCS (`processed-udm`).
+3. **Error Handling & Observability**:
+
+   * Failed deliveries route to a dead-letter topic after retry limits.
+   * Logs flow into Cloud Logging; metrics into Cloud Monitoring; health checks enforce service reliability.
+
+
+## Repository Layout
 
 ```plaintext
-.
-├── deploy.txt             # Istruzioni di deploy dettagliate (può essere integrato in questo README)
-├── sniffer/
-│   ├── Dockerfile         # Definizione del container Sniffer
-│   ├── sniffer_entrypoint.sh # Script eseguito all'avvio del container Sniffer
-│   └── gcp-key/           # **NON PUBBLICARE QUESTA DIRECTORY!** Contiene la chiave SA dello sniffer.
-├── processor/
-│   ├── Dockerfile         # Definizione del container Processor
-│   ├── processor_app.py   # Applicazione Flask del processore Cloud Run
-│   ├── json2udm_cloud.py  # Script di conversione da tshark JSON a UDM
-│   └── requirements.txt   # Dipendenze Python per il processore
-└── terraform/
-    ├── main.tf            # Definizione principale dell'infrastruttura e IAM
-    ├── variables.tf       # Variabili di input per la configurazione Terraform
-    ├── outputs.tf         # Output utili dopo il deploy Terraform
-    ├── provider.tf        # Configurazione del provider Google Cloud
-    ├── terraform.tfvars.example # Esempio del file di configurazione delle variabili (da modificare)
-    ├── terraform.tfvars   # **NON PUBBLICARE QUESTO FILE!** Contiene i valori specifici del tuo deploy.
-    ├── .terraform/        # **NON PUBBLICARE QUESTA DIRECTORY!** Contiene i plugin Terraform scaricati.
-    ├── terraform.tfstate* # **NON PUBBLICARE QUESTI FILE!** Contengono lo stato del tuo deploy.
-    └── modules/           # Moduli Terraform riutilizzabili: ognuno con main.tf, variables.tf e output.tf
-        ├── cloudrun_processor/
-        ├── gcs_buckets/
-        ├── pubsub_topic/
-        └── test_generator_vm/
+Chronicle-sniffer/
+├── terraform/                      # Terraform IaC modules and configs
+│   ├── modules/
+│   │   ├── gcs_buckets/
+│   │   ├── pubsub_topic/
+│   │   ├── cloudrun_processor/
+│   │   └── test_generator_vm/       # VM simulating on‑prem environment
+│   │       └── startup.sh
+│   ├── provider.tf
+│   ├── variables.tf
+│   ├── main.tf
+│   ├── outputs.tf
+│   └── terraform.tfvars.example
+├── sniffer/                        # On‑Prem/Edge Sniffer
+│   ├── Dockerfile
+│   ├── sniffer_entrypoint.sh
+│   ├── docker-compose.yml          # Local sniffer compose
+│   └── .env.example                # Env vars template
+├── processor/                      # Cloud Run Processor
+│   ├── Dockerfile
+│   ├── processor_app.py            # Flask endpoint for Pub/Sub
+│   ├── json2udm_cloud.py           # Core UDM mapper
+│   └── requirements.txt
+├── LICENSE.md                      # MIT License
+└── readme.md                       # This file
 ```
 
-## Usage
+---
+
+## Prerequisites
+
+* GCP account with billing and required APIs (Cloud Run, Pub/Sub, Storage, IAM).
+* `gcloud` CLI configured for project and Artifact Registry.
+* Terraform (>=1.1.0).
+* Docker for local sniffer image.
+* Artifact Registry repository for processor image.
+
+## Environment Setup
+
+Before deploying, authenticate and configure your environment:
 
 ```bash
-# 1. Autentica il tuo account utente con gcloud
+# Log in to your Google account
+# (This will open a browser window)
 gcloud auth login
 
-# 2. Imposta il progetto GCP predefinito
-gcloud config set project gruppo-2
+# Set the default project
+gcloud config set project YOUR_PROJECT_ID
 
-# 3. Crea le Application Default Credentials per Terraform e altre applicazioni
+# Authenticate Application Default Credentials for Terraform and other tools
 gcloud auth application-default login
 
-# 4. Configura Docker per autenticarsi con Artifact Registry
-gcloud auth configure-docker europe-west8-docker.pkg.dev
+# Configure Docker to push/pull to Artifact Registry
+# Replace REGION and PROJECT_ID accordingly
+gcloud auth configure-docker REGION-docker.pkg.dev
 ```
 
-Dopo aver completato questi passaggi: `terraform init`, `terraform plan` e `terraform apply`
+## Quickstart
+
+1. **Clone repository**:
+
+   ```bash
+   git clone https://github.com/fillol/wireshark-pipeline-hybrid.git
+   cd wireshark-pipeline-hybrid
+   ```
+2. **Build & push processor image**:
+
+   ```bash
+   cd processor
+   docker build -t REGION-docker.pkg.dev/PROJECT_ID/REPO/processor:TAG .
+   docker push REGION-docker.pkg.dev/PROJECT_ID/REPO/processor:TAG
+   ```
+3. **Deploy infrastructure**:
+
+   ```bash
+   cd ../terraform
+   cp terraform.tfvars.example terraform.tfvars
+   # configure project, region, buckets, image URI, SSH CIDRs
+   terraform init -reconfigure
+   terraform plan -out=tfplan
+   terraform apply tfplan
+   ```
+4. **Generate Sniffer SA key**:
+
+   ```bash
+   # use Terraform output
+   cp key.json ../sniffer/gcp-key/
+   ```
+5. **Start sniffer**:
+
+   ```bash
+   cd ../sniffer
+   cp .env.example .env
+   # fill GCP_PROJECT_ID, INCOMING_BUCKET, PUBSUB_TOPIC_ID
+   docker-compose up -d
+   ```
+6. **Validate pipelines**:
+
+   * Monitor Cloud Run logs for processing events.
+   * Check `processed-udm` bucket for UDM JSON files.
+7. **Cleanup**:
+
+   ```bash
+   cd ../terraform
+   terraform destroy
+   cd ../sniffer
+   docker-compose down
+   rm gcp-key/key.json
+   ```
+
+---
+
+## Educational Value
+
+This project serves as a hands‑on exploration of key course topics:
+
+* **Scalability & Distribution**: By offloading computation to serverless Cloud Run and decoupling via Pub/Sub, on‑prem devices only perform lightweight capture, simplifying client hardware and enabling horizontal scaling of processing.
+* **Cloud-Native Best Practices**: Utilizes Terraform modules for repeatable IaC, GCP managed services for resilience, and OIDC for secure service integration.
+* **Comprehensive GCP Toolchain**: Hands‑on with Cloud Storage, Pub/Sub, Cloud Run, Cloud Monitoring, Cloud Logging, IAM, and Artifact Registry.
+* **Modular Design**: The core `json2udm_cloud.py` script embodies the transformation logic, making it reusable across different ingestion workflows.
+
+
+## Test VM (On‑Prem Simulation)
+
+The optional test VM replicates an on‑premises environment:
+
+* Provisioned via Terraform (`test_generator_vm` module) with restrictive SSH rules (`ssh_source_ranges`).
+* Runs `startup.sh` to install `tcpdump` and `tcpreplay`, preparing for traffic generation.
+* Use `tcpreplay` to stream sample PCAPs to the sniffer for end‑to‑end validation.
+
+
+## Logging & Monitoring
+
+A dedicated dashboard tracks both operational and cost metrics:
+
+* **Logs**: Structured JSON logs from sniffer containers and Cloud Run are centralized in Cloud Logging for traceability.
+* **Metrics**: GCS operations, Pub/Sub backlog, Cloud Run invocations, error rates, and compute usage are visualized in Cloud Monitoring dashboards.
+* **Billing Alerts**: Alerts configured for unusual cost spikes, ensuring the client maintains budgetary control.
+
+---
+
+## Implementation Details
+
+### Terraform Modules
+
+* **gcs\_buckets**: Incoming and processed buckets with versioning, uniform access, optional CMEK, and lifecycle rules.
+* **pubsub\_topic**: Main and DLQ topics, push subscription with OIDC and dead‑letter policy.
+* **cloudrun\_processor**: Cloud Run v2 service with resource limits, concurrency, probes, and environment variables.
+* **test\_generator\_vm**: GCE instance simulating on‑prem, installs network tools on startup.
+
+### Sniffer Container
+
+* **Dockerfile**: `google/cloud-sdk:slim` base, installs `tshark`, `procps`, `iproute2`.
+* **sniffer\_entrypoint.sh**:
+
+  1. Validate env vars.
+  2. Activate SA via `gcloud auth`.
+  3. Auto-detect network interface.
+  4. Run `tshark` with rotation (size/time).
+  5. Monitor capture directory, upload closed PCAPs, publish Pub/Sub messages, delete local files.
+  6. Graceful shutdown on SIGTERM.
+
+### Cloud Run Processor
+
+* **processor\_app.py**:
+
+  * Flask endpoint for Pub/Sub push.
+  * Downloads PCAP to temp directory, runs `tshark -T json`, calls `json2udm_cloud.py`, uploads UDM JSON.
+  * Returns HTTP 204 on success; appropriate 4xx/5xx for Pub/Sub retry semantics.
+
+* **json2udm\_cloud.py**:
+
+  * Parses raw `tshark` JSON layers (frame, eth, ip, transport, application).
+  * Maps to UDM schema (metadata, principal, target, network, about).
+  * Converts timestamps to ISO8601 UTC.
+  * Handles missing fields gracefully; logs extraction errors.
+  * Emits newline‑delimited JSON array of UDM events.
+
+---
+
+## Security Considerations
+
+* **Least-Privilege IAM** for sniffer and processor SAs.
+* **OIDC‑Secured Cloud Run Invocation**.
+* **Local SA Key Management** with rotation and restricted storage.
+* **Firewall Rules** restricting SSH on test VM.
+* **Bucket Policies**: Uniform access, no public ACLs, optional CMEK encryption.
+
+
+## Maintenance & Troubleshooting
+
+* **Processor Updates**: Rebuild/push image, update `processor_image_uri`, `terraform apply`.
+
+* **Sniffer Updates**: Rebuild sniffer image, adjust `docker-compose.yml`, `docker-compose up`.
+
+* **Scaling Notes**:
+
+  * For high-throughput workloads, consider increasing Cloud Run memory/CPU, max instances (`max_instances`), or adjusting concurrency in the `cloudrun_processor` Terraform module.
+  * Configure Pub/Sub retry settings (e.g., `maximum_backoff_duration`, `minimum_backoff_duration`) in Terraform for more robust error handling during peak load or transient errors.
+
+* **Common Issues**:
+
+  * No uploads: check sniffer logs and SA permissions.
+  * Pub/Sub backlog: inspect Cloud Run logs; check DLQ.
+  * Conversion errors: test `tshark` and UDM mapping locally.
+  * Terraform failures: validate `terraform.tfvars` and inspect plan
+
+---
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE.md](LICENSE.md) for details.
