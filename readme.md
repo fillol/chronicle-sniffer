@@ -1,4 +1,4 @@
-# Chronicle-sniffer: a Wireshark-to-SecoOps Pipeline on GCP
+# Chronicle-sniffer: a Wireshark-to-SecOps Pipeline on GCP
 
 **Author:** [Filippo Lucchesi](https://github.com/fillol)  
 **Course:** [Scalable and Reliable Services](https://www.unibo.it/en/study/course-units-transferable-skills-moocs/course-unit-catalogue/course-unit/2024/472686), [University of Bologna](https://www.unibo.it)  
