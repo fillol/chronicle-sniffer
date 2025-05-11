@@ -19,10 +19,8 @@ GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 if not INCOMING_BUCKET_NAME or not OUTPUT_BUCKET_NAME:
     logging.error("Error: INCOMING_BUCKET and OUTPUT_BUCKET env vars must be set.")
 
-# --- Setup Logging ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- Flask App ---
 app = Flask(__name__)
 
 # --- Initialize Google Cloud Storage Client ---
@@ -52,10 +50,6 @@ def health_check():
 # --- Route for Pub/Sub Push ---
 @app.route('/', methods=['POST'])
 def process_pcap_notification():
-    """
-    Receives Pub/Sub push notifications, processes the referenced pcap file.
-    Returns appropriate HTTP status codes for Pub/Sub acknowledgement.
-    """
     if not storage_client:
         logging.error("Storage client not available.")
         # 500 Internal Server Error - Pub/Sub will retry
@@ -117,7 +111,6 @@ def process_pcap_notification():
             logging.info(f"tshark conversion successful.")
             if process.stderr: logging.warning(f"tshark stderr: {process.stderr}")
 
-
             # 3. Convert JSON to UDM using the Python script
             logging.info(f"Converting {local_json_path} to UDM...")
             udm_script_command = ["python3", "/app/json2udm_cloud.py", local_json_path, local_udm_path]
@@ -126,7 +119,6 @@ def process_pcap_notification():
             logging.info(f"UDM conversion successful.")
             if process.stdout: logging.info(f"json2udm_cloud.py stdout: {process.stdout}")
             if process.stderr: logging.warning(f"json2udm_cloud.py stderr: {process.stderr}")
-
 
             # 4. Upload UDM JSON to GCS Output Bucket
             logging.info(f"Uploading {local_udm_path} to gs://{OUTPUT_BUCKET_NAME}/{udm_output_filename}")

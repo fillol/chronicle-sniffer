@@ -6,10 +6,8 @@ import os
 import logging
 from datetime import datetime, timezone
 
-# Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-# Convert timestamp to RFC 3339 format (ISO 8601)
 def convert_timestamp(timestamp_str):
     """Converts Wireshark timestamp string to ISO 8601 UTC format."""
     try:
@@ -27,7 +25,6 @@ def convert_timestamp(timestamp_str):
         logging.warning(f"Error converting timestamp '{timestamp_str}': {e}. Using current time.")
         return datetime.now(timezone.utc).isoformat(timespec='microseconds') + 'Z'
 
-# Helper function to safely extract nested dictionary values for DNS
 def get_dns_value(data_dict, key_path):
     """Safely retrieves a nested value from a dictionary using a dot-separated path."""
     keys = key_path.split('.')
@@ -41,7 +38,6 @@ def get_dns_value(data_dict, key_path):
         return val
     except: return None
 
-# Helper function to extract DNS query/answer details
 def extract_dns_details(dns_layer, detail_type):
     """Extracts specific details from DNS queries or answers."""
     details = {}
@@ -72,7 +68,6 @@ def extract_dns_details(dns_layer, detail_type):
 
     return details if details else None
 
-# Helper function to extract TLS handshake details
 def extract_tls_handshake(tls_record, item_key):
     """Safely extracts handshake details from a TLS record."""
     if isinstance(tls_record, dict):
@@ -81,7 +76,6 @@ def extract_tls_handshake(tls_record, item_key):
             return handshake.get(item_key)
     return None
 
-# Function to convert JSON packet data to UDM format
 def json_to_udm(wireshark_json_str):
     """Converts a string containing Wireshark JSON export to a list of UDM events."""
     try:
@@ -213,7 +207,6 @@ def json_to_udm(wireshark_json_str):
     if skipped_packets > 0: logging.warning(f"Skipped {skipped_packets} packets.")
     return udm_events
 
-# --- Main Entry Point ---
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         logging.error("Usage: python3 json2udm_cloud.py <input_json_file> <output_udm_file>")
