@@ -1,18 +1,14 @@
-FROM google/cloud-sdk:slim
+FROM gcr.io/google.com/cloudsdktool/google-cloud-cli:alpine
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    tshark \
-    procps \
-    iproute2 \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache \
+        tshark      \
+        procps      \
+        iproute2
 
 WORKDIR /app
-RUN mkdir /app/captures
+RUN mkdir captures gcp-key
 
 COPY sniffer_entrypoint.sh .
 RUN chmod +x sniffer_entrypoint.sh
-
-# Directory per montare la chiave SA
-RUN mkdir /app/gcp-key
 
 ENTRYPOINT ["/app/sniffer_entrypoint.sh"]

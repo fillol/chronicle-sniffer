@@ -16,6 +16,8 @@ cloud_run_cpu             = "1000m"
 cloud_run_memory          = "512Mi"
 
 // ssh_source_ranges = ["IP_PUBBLICO/32"]
-
 // enable_bucket_versioning  = true
 // cmek_key_name             = "" // Lascia vuoto per usare Google-managed keys
+
+// Per VM-test
+sniffer_image_uri         = "URI_IMMAGINE_PUSHATA_SU_ARTIFACT_REGISTRY" 

@@ -1,0 +1,5 @@
+gcp-key/
+.env
+.env.example
+compose.yml
+readme.md
