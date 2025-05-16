@@ -26,14 +26,6 @@ resource "google_service_account" "test_vm_sa" {
   display_name = "Service Account for Test/Sniffer VM"
 }
 
-# Permetti al SA della VM di Test di leggere da Artifact Registry => inutile se usiamo dockerhub
-# resource "google_project_iam_member" "test_vm_sa_artifact_registry_reader" {
-#   project = var.gcp_project_id
-#   role    = "roles/artifactregistry.reader"
-#   member  = "serviceAccount:${google_service_account.test_vm_sa.email}"
-# }
-
-
 # --- Moduli ---
 module "gcs_buckets" {
   source                    = "./modules/gcs_buckets"
@@ -107,6 +99,21 @@ resource "google_storage_bucket_iam_member" "sniffer_sa_gcs_writer" {
 }
 
 # --- IAM: Cloud Run Processor SA Permissions ---
+
+# Permesso per storage.buckets.get sul bucket INCOMING
+resource "google_storage_bucket_iam_member" "runner_incoming_bucket_metadata_reader" {
+  bucket = module.gcs_buckets.incoming_pcap_bucket_id
+  role   = "roles/storage.legacyBucketReader" # Contiene storage.buckets.get
+  member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
+# Permesso per storage.buckets.get sul bucket OUTPUT
+resource "google_storage_bucket_iam_member" "runner_output_bucket_metadata_reader" {
+  bucket = module.gcs_buckets.processed_udm_bucket_id
+  role   = "roles/storage.legacyBucketReader" # Contiene storage.buckets.get
+  member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
 resource "google_storage_bucket_iam_member" "runner_gcs_writer" {
   bucket = module.gcs_buckets.processed_udm_bucket_id
   role   = "roles/storage.objectCreator"
@@ -118,6 +125,15 @@ resource "google_storage_bucket_iam_member" "runner_gcs_reader" {
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
+
+# La risorsa runner_gcs_output_viewer è ridondante se runner_gcs_writer è già presente
+# perché roles/storage.objectCreator include i permessi di roles/storage.objectViewer.
+# Puoi commentarla o rimuoverla per pulizia, ma non è la causa dell'errore attuale.
+# resource "google_storage_bucket_iam_member" "runner_gcs_output_viewer" {
+#   bucket = module.gcs_buckets.processed_udm_bucket_id
+#   role   = "roles/storage.objectViewer"
+#   member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+# }
 
 # --- IAM: Permessi per OIDC Pub/Sub -> Cloud Run ---
 resource "google_service_account_iam_member" "pubsub_sa_token_creator_for_cloud_run_sa" {
