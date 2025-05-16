@@ -126,15 +126,6 @@ resource "google_storage_bucket_iam_member" "runner_gcs_reader" {
   member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
-# La risorsa runner_gcs_output_viewer è ridondante se runner_gcs_writer è già presente
-# perché roles/storage.objectCreator include i permessi di roles/storage.objectViewer.
-# Puoi commentarla o rimuoverla per pulizia, ma non è la causa dell'errore attuale.
-# resource "google_storage_bucket_iam_member" "runner_gcs_output_viewer" {
-#   bucket = module.gcs_buckets.processed_udm_bucket_id
-#   role   = "roles/storage.objectViewer"
-#   member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
-# }
-
 # --- IAM: Permessi per OIDC Pub/Sub -> Cloud Run ---
 resource "google_service_account_iam_member" "pubsub_sa_token_creator_for_cloud_run_sa" {
   service_account_id = google_service_account.cloud_run_sa.name
