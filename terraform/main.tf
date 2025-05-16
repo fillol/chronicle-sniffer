@@ -5,7 +5,7 @@ data "google_project" "project" {
 # --- Service Accounts ---
 resource "google_service_account" "sniffer_sa" {
   project      = var.gcp_project_id
-  account_id   = "${var.base_name}-snfr-sa" # Accorciato per sicurezza lunghezza
+  account_id   = "${var.base_name}-snfr-sa" 
   display_name = "Service Account for On-Prem Sniffers"
 }
 
@@ -15,18 +15,18 @@ resource "google_service_account_key" "sniffer_sa_key" {
 
 resource "google_service_account" "cloud_run_sa" {
   project      = var.gcp_project_id
-  account_id   = "${var.base_name}-run-sa" # Accorciato
+  account_id   = "${var.base_name}-run-sa" 
   display_name = "Service Account for Cloud Run Processor"
 }
 
 # --- Service Account per la VM di Test ---
 resource "google_service_account" "test_vm_sa" {
   project      = var.gcp_project_id
-  account_id   = "${var.base_name}-testvm-sa" # Assicurati che sia < 30 caratteri
-  display_name = "Service Account for Test Generator VM"
+  account_id   = "${var.base_name}-testvm-sa" 
+  display_name = "Service Account for Test/Sniffer VM"
 }
 
-# Permetti al SA della VM di Test di leggere da Artifact Registry (a livello di progetto)
+# Permetti al SA della VM di Test di leggere da Artifact Registry
 resource "google_project_iam_member" "test_vm_sa_artifact_registry_reader" {
   project = var.gcp_project_id
   role    = "roles/artifactregistry.reader"
@@ -69,29 +69,30 @@ module "cloudrun_processor" {
 }
 
 module "test_generator_vm" {
-  source            = "./modules/test_generator_vm"
-  project_id        = var.gcp_project_id
-  zone              = var.test_vm_zone
-  vm_name           = "${var.base_name}-test-generator"
-  ssh_source_ranges = var.ssh_source_ranges
+  source                         = "./modules/test_generator_vm" // Path al modulo
+  project_id                     = var.gcp_project_id
+  zone                           = var.test_vm_zone
+  vm_name                        = "${var.base_name}-sniffer-vm" // Nome istanza VM
+  ssh_source_ranges              = var.ssh_source_ranges
+  
+  attached_service_account_email = google_service_account.test_vm_sa.email // SA dedicato per la VM
+  startup_script_path            = "${path.module}/modules/test_generator_vm/startup_script_vm.sh" // Path allo script
 
-  // Passaggio delle variabili per lo sniffer e il SA della VM
-  service_account_email   = google_service_account.test_vm_sa.email // Usa il nuovo SA dedicato
-  sniffer_image_to_run    = var.sniffer_image_uri
-  sniffer_gcp_project_id  = var.gcp_project_id
-  sniffer_incoming_bucket = module.gcs_buckets.incoming_pcap_bucket_id
-  sniffer_pubsub_topic_id = module.pubsub_topic.topic_id
-  # Non passiamo la chiave SA dello sniffer ai metadati, verrà gestita dall'utente
+  // Variabili per i metadati (devono corrispondere a quelle nel variables.tf del modulo)
+  sniffer_image_uri_val       = var.sniffer_image_uri
+  sniffer_gcp_project_id_val  = var.gcp_project_id
+  sniffer_incoming_bucket_val = module.gcs_buckets.incoming_pcap_bucket_id
+  sniffer_pubsub_topic_id_val = module.pubsub_topic.topic_id
 
   depends_on = [
-    google_service_account.sniffer_sa,                             // Il SA sniffer deve esistere per 'generate_sniffer_key_command' output
-    google_project_iam_member.test_vm_sa_artifact_registry_reader, // Il SA della VM deve avere i permessi AR
+    google_service_account.sniffer_sa, // Il SA sniffer deve esistere per l'output 'generate_sniffer_key_command'
+    google_project_iam_member.test_vm_sa_artifact_registry_reader,
     module.gcs_buckets,
     module.pubsub_topic
   ]
 }
 
-# --- IAM: Sniffer SA Permissions ---
+# --- IAM: Sniffer SA Permissions (per la chiave SA che l'utente monterà) ---
 resource "google_pubsub_topic_iam_member" "sniffer_sa_pubsub_publisher" {
   project = var.gcp_project_id
   topic   = module.pubsub_topic.topic_id
@@ -120,7 +121,7 @@ resource "google_storage_bucket_iam_member" "runner_gcs_reader" {
 
 # --- IAM: Permessi per OIDC Pub/Sub -> Cloud Run ---
 resource "google_service_account_iam_member" "pubsub_sa_token_creator_for_cloud_run_sa" {
-  service_account_id = google_service_account.cloud_run_sa.name
+  service_account_id = google_service_account.cloud_run_sa.name 
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
@@ -142,7 +143,7 @@ resource "google_cloud_run_v2_service_iam_member" "allow_pubsub_oidc_invoker" {
   name       = module.cloudrun_processor.service_name
   location   = module.cloudrun_processor.service_location
   role       = "roles/run.invoker"
-  member     = "serviceAccount:${google_service_account.cloud_run_sa.email}" # L'identità nel token OIDC
+  member     = "serviceAccount:${google_service_account.cloud_run_sa.email}"
   depends_on = [module.cloudrun_processor, google_service_account.cloud_run_sa]
 }
 
@@ -158,7 +159,7 @@ resource "google_pubsub_subscription" "processor_subscription" {
     dynamic "oidc_token" {
       for_each = !var.allow_unauthenticated_invocations ? [1] : []
       content {
-        service_account_email = google_service_account.cloud_run_sa.email
+        service_account_email = google_service_account.cloud_run_sa.email 
         audience              = module.cloudrun_processor.service_url
       }
     }
@@ -166,7 +167,7 @@ resource "google_pubsub_subscription" "processor_subscription" {
   depends_on = [
     module.cloudrun_processor,
     google_cloud_run_v2_service_iam_member.allow_unauthenticated,
-    google_cloud_run_v2_service_iam_member.allow_pubsub_oidc_invoker,
+    google_cloud_run_v2_service_iam_member.allow_pubsub_oidc_invoker, 
     google_service_account_iam_member.pubsub_sa_token_creator_for_cloud_run_sa
   ]
 }

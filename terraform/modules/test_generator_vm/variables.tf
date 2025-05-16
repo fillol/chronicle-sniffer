@@ -4,14 +4,14 @@ variable "project_id" {
 }
 
 variable "zone" {
-  description = "Zona GCP per la VM (es. europe-west1-b)."
+  description = "Zona GCP per la VM."
   type        = string
 }
 
 variable "vm_name" {
-  description = "Nome della VM di test."
+  description = "Nome della VM sniffer/test."
   type        = string
-  default     = "traffic-generator-vm"
+  default     = "sniffer-vm-instance" // Default aggiornato
 }
 
 variable "machine_type" {
@@ -21,57 +21,56 @@ variable "machine_type" {
 }
 
 variable "vm_image" {
-  description = "Immagine disco per la VM."
+  description = "Immagine disco per la VM (deve supportare Docker)."
   type        = string
   default     = "debian-cloud/debian-11"
 }
 
-variable "service_account_email" {
-  description = "Email del Service Account da associare alla VM. Se null, usa il GCE default SA."
+variable "attached_service_account_email" {
+  description = "Email del Service Account da associare a questa VM."
   type        = string
-  # default     = null # Rimosso default null, ora lo passiamo sempre
 }
 
 variable "disk_type" {
-  description = "Tipo di disco per la VM (es. pd-standard, pd-ssd)."
+  description = "Tipo di disco per la VM."
   type        = string
   default     = "pd-standard"
 }
-variable "startup_script" {
-  description = "Script di avvio per la VM."
+
+variable "startup_script_path" {
+  description = "Percorso (relativo alla root del modulo) al file dello script di avvio per la VM."
   type        = string
-  default     = <<-EOT
-    #!/bin/bash
-    echo "Default startup script - dovrebbe essere sovrascritto."
-  EOT
+  # Non c'è un default qui, deve essere fornito
 }
+
 variable "ssh_source_ranges" {
   description = "Lista di CIDR IP permessi per SSH."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
 }
+
 variable "access_scopes" {
-  type    = list(string)
-  default = ["https://www.googleapis.com/auth/cloud-platform"]
+  description = "Scope di accesso per il Service Account della VM."
+  type        = list(string)
+  default     = ["https://www.googleapis.com/auth/cloud-platform"] // Scope ampio per gcloud
 }
 
-// Variabili per lo sniffer sulla VM
-variable "sniffer_image_to_run" {
-  description = "URI completo dell'immagine Docker dello sniffer da Artifact Registry."
+// Variabili per i metadati da passare allo script di startup della VM
+variable "sniffer_image_uri_val" {
+  description = "URI completo dell'immagine Docker dello sniffer (da Artifact Registry)."
   type        = string
 }
 
-variable "sniffer_gcp_project_id" {
-  description = "ID del progetto GCP per la configurazione dello sniffer."
+variable "sniffer_gcp_project_id_val" {
+  description = "ID del progetto GCP da usare nello script dello sniffer."
   type        = string
 }
 
-variable "sniffer_incoming_bucket" {
-  description = "Nome del bucket GCS per i pcap (solo nome)."
+variable "sniffer_incoming_bucket_val" {
+  description = "Nome del bucket GCS per i pcap in ingresso (solo nome)."
   type        = string
 }
 
-variable "sniffer_pubsub_topic_id" {
-  description = "ID completo del topic Pub/Sub per le notifiche dello sniffer."
+variable "sniffer_pubsub_topic_id_val" {
+  description = "ID completo del topic Pub/Sub per le notifiche."
   type        = string
 }

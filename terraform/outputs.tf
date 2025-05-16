@@ -24,13 +24,18 @@ output "processor_cloud_run_service_url" {
 }
 
 output "sniffer_service_account_email" {
-  description = "Email del Service Account per lo sniffer."
+  description = "Email del Service Account dedicato per lo sniffer (per la chiave)."
   value       = google_service_account.sniffer_sa.email
 }
 
 output "cloud_run_service_account_email" {
   description = "Email del Service Account per Cloud Run."
   value       = google_service_account.cloud_run_sa.email
+}
+
+output "test_vm_service_account_email" {
+  description = "Email del Service Account associato alla VM di test."
+  value       = google_service_account.test_vm_sa.email
 }
 
 output "test_generator_vm_ip" {
@@ -43,52 +48,69 @@ output "test_generator_vm_name" {
   value       = module.test_generator_vm.vm_name
 }
 
-# --- NUOVO OUTPUT CON ISTRUZIONI ---
+output "generate_sniffer_key_command" {
+  description = "Comando gcloud per generare la chiave JSON per il sniffer_sa (eseguire localmente)."
+  value       = "gcloud iam service-accounts keys create ./sniffer-key.json --iam-account=${google_service_account.sniffer_sa.email}"
+}
+
 output "test_vm_sniffer_setup_instructions" {
   description = "Istruzioni per configurare e avviare lo sniffer sulla VM di test."
-  value       = <<EOT
+  value = <<EOT
+
+----------------------------------------------------------------------------------------------------
 ISTRUZIONI PER LO SNIFFER SULLA VM DI TEST ('${module.test_generator_vm.vm_name}'):
+----------------------------------------------------------------------------------------------------
+L'ambiente base sulla VM è stato preparato (Docker installato, immagine sniffer '${var.sniffer_image_uri}' pullata).
+Per eseguire lo sniffer, devi fornirgli la chiave del Service Account '${google_service_account.sniffer_sa.email}'.
 
-1. PREPARAZIONE CHIAVE SERVICE ACCOUNT DELLO SNIFFER:
-   Sulla TUA MACCHINA LOCALE, esegui questo comando per generare la chiave per '${google_service_account.sniffer_sa.email}':
-     gcloud iam service-accounts keys create ./sniffer-key.json --iam-account=${google_service_account.sniffer_sa.email}
-   Questo creerà un file 'sniffer-key.json' nella tua directory corrente.
+1.  PREPARAZIONE CHIAVE SERVICE ACCOUNT DELLO SNIFFER (sulla TUA MACCHINA LOCALE):
+    Esegui questo comando per creare (o sovrascrivere) 'sniffer-key.json' per '${google_service_account.sniffer_sa.email}':
+    ${self.generate_sniffer_key_command}
 
-2. ACCEDI ALLA VM DI TEST VIA SSH:
-     gcloud compute ssh --project ${var.gcp_project_id} --zone ${module.test_generator_vm.vm_zone} ${module.test_generator_vm.vm_name}
+2.  ACCEDI ALLA VM DI TEST VIA SSH (dalla TUA MACCHINA LOCALE):
+    ${module.test_generator_vm.ssh_command}
 
-3. PREPARA LA DIRECTORY PER LA CHIAVE SULLA VM:
-   Una volta connesso alla VM, esegui:
-     mkdir -p ~/my-sniffer-key
+3.  PREPARA LA DIRECTORY PER LA CHIAVE SULLA VM (dentro la sessione SSH):
+    mkdir -p ~/my-sniffer-key-vol
 
-4. COPIA LA CHIAVE SULLA VM:
-   Apri un NUOVO terminale sulla TUA MACCHINA LOCALE (non quello della sessione SSH) e esegui:
-     gcloud compute scp ./sniffer-key.json ${module.test_generator_vm.vm_name}:~/my-sniffer-key/key.json --project ${var.gcp_project_id} --zone ${module.test_generator_vm.vm_zone}
+4.  COPIA LA CHIAVE SULLA VM (da un NUOVO terminale sulla TUA MACCHINA LOCALE):
+    gcloud compute scp ./sniffer-key.json ${module.test_generator_vm.vm_name}:~/my-sniffer-key-vol/key.json --project ${var.gcp_project_id} --zone ${module.test_generator_vm.vm_zone}
 
-5. MODIFICA DOCKER-COMPOSE.YML SULLA VM:
-   Torna alla sessione SSH sulla VM. Lo script di startup ha preparato i file in /opt/sniffer.
-   Modifica il file docker-compose.yml per puntare alla chiave che hai appena copiato:
-     sudo nano /opt/sniffer/docker-compose.yml
-   Trova la sezione 'volumes:' e cambia la riga:
-     - "/path/to/local/gcp-key-dir:/app/gcp-key:ro"
-   in:
-     - "$HOME/my-sniffer-key:/app/gcp-key:ro"
-   Salva il file (Ctrl+O, Invio, Ctrl+X se usi nano).
+5.  MODIFICA DOCKER-COMPOSE.YML SULLA VM (dentro la sessione SSH):
+    Lo script di startup ha preparato i file in /opt/sniffer_env.
+    Modifica il file docker-compose.yml per puntare alla directory della chiave:
+    sudo nano /opt/sniffer_env/docker-compose.yml
+    Trova la sezione 'volumes:' e cambia la riga:
+      - "/path/on/vm/to/gcp-key-dir:/app/gcp-key:ro"
+    in:
+      - "$HOME/my-sniffer-key-vol:/app/gcp-key:ro"  # Se hai usato ~/my-sniffer-key-vol
+    Salva il file (Ctrl+O, Invio, Ctrl+X se usi nano).
 
-6. AVVIA LO SNIFFER:
-   Sempre sulla VM:
-     cd /opt/sniffer
-     sudo docker-compose up -d
+6.  AVVIA LO SNIFFER (dentro la sessione SSH):
+    cd /opt/sniffer_env
+    sudo docker-compose up -d
 
-7. CONTROLLA I LOG DELLO SNIFFER:
-     sudo docker logs onprem-sniffer-instance -f
+7.  CONTROLLA I LOG DELLO SNIFFER (dentro la sessione SSH):
+    sudo docker logs onprem-sniffer-instance -f
+    Dovresti vedere l'attivazione del SA '${google_service_account.sniffer_sa.email}' e l'avvio di tshark.
 
-8. GENERA TRAFFICO DI RETE SULLA VM PER TESTARE:
-     ping -c 20 google.com
-     curl http://example.com
+8.  GENERA TRAFFICO DI RETE SULLA VM PER TESTARE (dentro la sessione SSH):
+    ping -c 20 google.com
+    curl http://example.com
 
-9. PER FERMARE LO SNIFFER:
-     cd /opt/sniffer
-     sudo docker-compose down
+9.  VERIFICA LA PIPELINE:
+    *   Nei log dello sniffer: messaggi di upload GCS e pubblicazione Pub/Sub.
+    *   Bucket GCS '${module.gcs_buckets.incoming_pcap_bucket_id}': Dovrebbero apparire i file .pcap.
+    *   Log di Cloud Run '${module.cloudrun_processor.service_name}': Messaggi di ricezione notifica e processamento.
+    *   Bucket GCS '${module.gcs_buckets.processed_udm_bucket_id}': Dovrebbero apparire i file .udm.json.
+
+10. PER FERMARE LO SNIFFER (dentro la sessione SSH):
+    cd /opt/sniffer_env
+    sudo docker-compose down
+
+11. PER PULIRE TUTTE LE RISORSE GCP (dalla TUA MACCHINA LOCALE, directory terraform):
+    terraform destroy
+    (Ricorda di eliminare anche la chiave SA locale './sniffer-key.json').
+----------------------------------------------------------------------------------------------------
 EOT
 }
