@@ -27,9 +27,9 @@ variable "vm_image" {
 }
 
 variable "service_account_email" {
-  description = "Email del Service Account per la VM (null per usare il default GCE SA)."
+  description = "Email del Service Account da associare alla VM. Se null, usa il GCE default SA."
   type        = string
-  default     = null # Useremo il GCE default SA
+  # default     = null # Rimosso default null, ora lo passiamo sempre
 }
 
 variable "disk_type" {
@@ -37,24 +37,22 @@ variable "disk_type" {
   type        = string
   default     = "pd-standard"
 }
-
 variable "startup_script" {
-  description = "Script di avvio per la VM. Sarà sovrascritto nel main.tf del modulo."
+  description = "Script di avvio per la VM."
   type        = string
-  default     = "#!/bin/bash\necho 'Default startup script, dovrebbe essere sovrascritto.'"
+  default     = <<-EOT
+    #!/bin/bash
+    echo "Default startup script - dovrebbe essere sovrascritto."
+  EOT
 }
-
 variable "ssh_source_ranges" {
   description = "Lista di CIDR IP permessi per SSH."
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
-
 variable "access_scopes" {
   type    = list(string)
-  default = [
-    "https://www.googleapis.com/auth/cloud-platform", // Scope ampio per gcloud
-  ]
+  default = ["https://www.googleapis.com/auth/cloud-platform"]
 }
 
 // Variabili per lo sniffer sulla VM

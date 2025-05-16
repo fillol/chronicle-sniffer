@@ -46,7 +46,7 @@ output "test_generator_vm_name" {
 # --- NUOVO OUTPUT CON ISTRUZIONI ---
 output "test_vm_sniffer_setup_instructions" {
   description = "Istruzioni per configurare e avviare lo sniffer sulla VM di test."
-  value = <<EOT
+  value       = <<EOT
 ISTRUZIONI PER LO SNIFFER SULLA VM DI TEST ('${module.test_generator_vm.vm_name}'):
 
 1. PREPARAZIONE CHIAVE SERVICE ACCOUNT DELLO SNIFFER:

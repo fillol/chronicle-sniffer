@@ -8,7 +8,7 @@ resource "google_compute_instance" "generator" {
   boot_disk {
     initialize_params {
       image = var.vm_image
-      size  = 20 # Aumentato per Docker e immagini
+      size  = 20
       type  = var.disk_type
     }
   }
@@ -19,17 +19,17 @@ resource "google_compute_instance" "generator" {
   }
 
   service_account {
-    email  = var.service_account_email # Se null, usa GCE Default SA. Deve avere roles/artifactregistry.reader
-    scopes = var.access_scopes
+    email  = var.service_account_email # Ora riceverà l'email del SA dedicato (test_vm_sa)
+    scopes = var.access_scopes         # "cloud-platform" è sufficiente
   }
 
   metadata = {
-    # Passiamo le info necessarie per configurare lo sniffer sulla VM
+    # Le informazioni per configurare lo sniffer sono passate qui
     SNIFFER_IMAGE_URI       = var.sniffer_image_to_run
     SNIFFER_GCP_PROJECT_ID  = var.sniffer_gcp_project_id
     SNIFFER_INCOMING_BUCKET = var.sniffer_incoming_bucket
     SNIFFER_PUBSUB_TOPIC_ID = var.sniffer_pubsub_topic_id
-    # Non passiamo più la chiave SA, verrà montata manualmente
+    # Non passiamo la chiave SA dello sniffer qui, l'utente la gestirà
   }
 
   metadata_startup_script = <<-EOT
@@ -76,16 +76,17 @@ resource "google_compute_instance" "generator" {
         exit 1
     fi
     echo "Dominio Artifact Registry rilevato: $ARTIFACT_REGISTRY_DOMAIN"
-    # Questo comando richiede che il SA della VM (GCE Default o custom) abbia i permessi per leggere da AR
+    # Questo comando usa il SA associato alla VM. 
+    # Quel SA (test_vm_sa) ha ora 'roles/artifactregistry.reader' grazie a Terraform.
     if ! gcloud auth configure-docker $ARTIFACT_REGISTRY_DOMAIN -q; then
-        echo "ERRORE: Fallita la configurazione di Docker per Artifact Registry. Controlla i permessi del SA della VM (necessita roles/artifactregistry.reader)."
-        gcloud auth list # Mostra l'account attivo
+        echo "ERRORE: Fallita la configurazione di Docker per Artifact Registry."
+        gcloud auth list # Mostra l'account attivo sulla VM
         exit 1
     fi
     
     echo "Pull dell'immagine Docker dello sniffer da Artifact Registry: $SNIFFER_IMAGE_FROM_METADATA"
     if ! docker pull $SNIFFER_IMAGE_FROM_METADATA; then
-      echo "ERRORE: Fallito il pull dell'immagine Docker $SNIFFER_IMAGE_FROM_METADATA. Controlla l'URI dell'immagine e i permessi del SA della VM."
+      echo "ERRORE: Fallito il pull dell'immagine Docker $SNIFFER_IMAGE_FROM_METADATA. Controlla l'URI e i permessi del SA della VM."
       exit 1
     fi
     echo "Pull dell'immagine completato."
@@ -93,19 +94,18 @@ resource "google_compute_instance" "generator" {
     SNIFFER_DIR="/opt/sniffer"
     SNIFFER_ENV_FILE="$SNIFFER_DIR/.env"
     SNIFFER_COMPOSE_FILE="$SNIFFER_DIR/docker-compose.yml"
-    SNIFFER_GCP_KEY_TARGET_DIR="/app/gcp-key" # Path interno al container come definito nel compose
+    SNIFFER_GCP_KEY_TARGET_DIR="/app/gcp-key" 
 
     echo "Creazione directory per lo sniffer (se non esistono): $SNIFFER_DIR"
     mkdir -p $SNIFFER_DIR
-    mkdir -p $SNIFFER_DIR/captures # Per il volume mount di tshark
-    # Non creiamo gcp-key qui, sarà montata dall'utente
+    mkdir -p $SNIFFER_DIR/captures 
 
     echo "Creazione file .env per lo sniffer in $SNIFFER_ENV_FILE"
     cat << EOF_ENV > $SNIFFER_ENV_FILE
 GCP_PROJECT_ID=$VM_GCP_PROJECT_ID_FROM_METADATA
 INCOMING_BUCKET=$VM_INCOMING_BUCKET_FROM_METADATA
 PUBSUB_TOPIC_ID=$VM_PUBSUB_TOPIC_ID_FROM_METADATA
-GCP_KEY_FILE=$SNIFFER_GCP_KEY_TARGET_DIR/key.json # Percorso interno al container
+GCP_KEY_FILE=$SNIFFER_GCP_KEY_TARGET_DIR/key.json
 EOF_ENV
 
     echo "Creazione file docker-compose.yml in $SNIFFER_COMPOSE_FILE"
@@ -113,9 +113,8 @@ EOF_ENV
 version: '3.7'
 services:
   sniffer:
-    image: $SNIFFER_IMAGE_FROM_METADATA # Immagine pullata da Artifact Registry
+    image: $SNIFFER_IMAGE_FROM_METADATA 
     container_name: onprem-sniffer-instance
-    # No restart automatico, l'utente lo avvia
     env_file:
       - .env
     network_mode: "host"
@@ -123,11 +122,10 @@ services:
       - NET_ADMIN
       - NET_RAW
     volumes:
-      # Questo volume dovrà essere fornito dall'utente al 'docker-compose up'
-      # Lo prepariamo qui come placeholder nel file.
-      # L'utente sostituirà /path/to/local/gcp-key-dir con il percorso reale.
-      - "/path/to/local/gcp-key-dir:$SNIFFER_GCP_KEY_TARGET_DIR:ro"
-      - ./captures:/app/captures # Relativo a $SNIFFER_DIR quando si esegue docker-compose
+      # L'utente dovrà modificare questo path per puntare alla chiave SA dello sniffer
+      # che ha copiato sulla VM e montato.
+      - "/path/to/user/mounted/gcp-key-dir:$SNIFFER_GCP_KEY_TARGET_DIR:ro"
+      - ./captures:/app/captures 
 EOF_COMPOSE
     
     echo "--- VM Startup Script Completato ---"
@@ -135,25 +133,25 @@ EOF_COMPOSE
     echo "L'immagine Docker dello sniffer è stata pullata: $SNIFFER_IMAGE_FROM_METADATA"
     echo ""
     echo "ISTRUZIONI PER AVVIARE LO SNIFFER (dopo essersi connessi via SSH alla VM):"
-    echo "1. Assicurati di avere il file della chiave del Service Account 'sniffer-sa' (es. sniffer-key.json) sulla tua macchina locale."
-    echo "2. Crea una directory sulla VM per montare la chiave, ad esempio:"
+    echo "1. Assicurati di avere il file della chiave del Service Account sniffer (es. sniffer-key.json) sulla tua macchina locale."
+    echo "   (Terraform ha stampato un comando per generarla se non esiste: output 'generate_sniffer_key_command')"
+    echo "2. Crea una directory sulla VM per la chiave, ad esempio:"
     echo "   mkdir -p ~/my-sniffer-key"
     echo "3. Copia la tua chiave 'sniffer-key.json' in quella directory sulla VM:"
     echo "   # Dalla TUA MACCHINA LOCALE, in un NUOVO terminale:"
-    echo "   gcloud compute scp /percorso/locale/sniffer-key.json ${var.vm_name}:~/my-sniffer-key/key.json --project ${var.project_id} --zone ${var.zone}"
+    echo "   gcloud compute scp ./sniffer-key.json ${var.vm_name}:~/my-sniffer-key/key.json --project ${var.project_id} --zone ${var.zone}"
     echo "4. Modifica il file $SNIFFER_COMPOSE_FILE sulla VM:"
     echo "   sudo nano $SNIFFER_COMPOSE_FILE"
-    echo "   Cambia la riga del volume per la chiave da:"
-    echo "     - \"/path/to/local/gcp-key-dir:$SNIFFER_GCP_KEY_TARGET_DIR:ro\""
-    echo "   a (ad esempio):"
+    echo "   Trova la sezione 'volumes:' e cambia la riga:"
+    echo "     - \"/path/to/user/mounted/gcp-key-dir:$SNIFFER_GCP_KEY_TARGET_DIR:ro\""
+    echo "   in (ad esempio, se hai copiato la chiave in ~/my-sniffer-key/key.json):"
     echo "     - \"\$HOME/my-sniffer-key:$SNIFFER_GCP_KEY_TARGET_DIR:ro\""
+    echo "   Salva il file."
     echo "5. Avvia lo sniffer:"
     echo "   cd $SNIFFER_DIR"
     echo "   sudo docker-compose up -d"
-    echo "6. Per controllare i log:"
+    echo "6. Controlla i log:"
     echo "   sudo docker logs onprem-sniffer-instance -f"
-    echo "7. Per generare traffico:"
-    echo "   ping -c 10 google.com"
     EOT
 
   allow_stopping_for_update = true
@@ -161,12 +159,12 @@ EOF_COMPOSE
 
 resource "google_compute_firewall" "allow_ssh_vm" {
   project = var.project_id
-  name    = "${var.vm_name}-allow-ssh"
+  name    = "${var.vm_name}-allow-ssh" # Nome univoco per la regola firewall
   network = "default"
   allow {
     protocol = "tcp"
     ports    = ["22"]
   }
-  target_tags   = [var.vm_name]
-  source_ranges = var.ssh_source_ranges
+  target_tags   = [var.vm_name]         # Applica solo a questa VM
+  source_ranges = var.ssh_source_ranges # USA LA VARIABILE PER GLI IP PERMESSI
 }

@@ -11,7 +11,6 @@ resource "google_service_account" "sniffer_sa" {
 
 resource "google_service_account_key" "sniffer_sa_key" {
   service_account_id = google_service_account.sniffer_sa.name
-  # Nessun lifecycle prevent_destroy = true qui, la chiave è gestita da TF
 }
 
 resource "google_service_account" "cloud_run_sa" {
@@ -19,6 +18,21 @@ resource "google_service_account" "cloud_run_sa" {
   account_id   = "${var.base_name}-run-sa" # Accorciato
   display_name = "Service Account for Cloud Run Processor"
 }
+
+# --- Service Account per la VM di Test ---
+resource "google_service_account" "test_vm_sa" {
+  project      = var.gcp_project_id
+  account_id   = "${var.base_name}-testvm-sa" # Assicurati che sia < 30 caratteri
+  display_name = "Service Account for Test Generator VM"
+}
+
+# Permetti al SA della VM di Test di leggere da Artifact Registry (a livello di progetto)
+resource "google_project_iam_member" "test_vm_sa_artifact_registry_reader" {
+  project = var.gcp_project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${google_service_account.test_vm_sa.email}"
+}
+
 
 # --- Moduli ---
 module "gcs_buckets" {
@@ -61,17 +75,17 @@ module "test_generator_vm" {
   vm_name           = "${var.base_name}-test-generator"
   ssh_source_ranges = var.ssh_source_ranges
 
-  # Passaggio delle nuove variabili per lo sniffer automatizzato
+  // Passaggio delle variabili per lo sniffer e il SA della VM
+  service_account_email   = google_service_account.test_vm_sa.email // Usa il nuovo SA dedicato
   sniffer_image_to_run    = var.sniffer_image_uri
   sniffer_gcp_project_id  = var.gcp_project_id
   sniffer_incoming_bucket = module.gcs_buckets.incoming_pcap_bucket_id
   sniffer_pubsub_topic_id = module.pubsub_topic.topic_id
-  # Non passiamo più la chiave SA direttamente, verrà gestita dall'utente
-  # sniffer_sa_key_json_base64 = base64encode(google_service_account_key.sniffer_sa_key.private_key)
+  # Non passiamo la chiave SA dello sniffer ai metadati, verrà gestita dall'utente
 
   depends_on = [
-    # google_service_account_key.sniffer_sa_key, # Non più una dipendenza diretta per i metadati
-    google_service_account.sniffer_sa, # Il SA deve esistere per generare la chiave
+    google_service_account.sniffer_sa,                             // Il SA sniffer deve esistere per 'generate_sniffer_key_command' output
+    google_project_iam_member.test_vm_sa_artifact_registry_reader, // Il SA della VM deve avere i permessi AR
     module.gcs_buckets,
     module.pubsub_topic
   ]
@@ -105,11 +119,10 @@ resource "google_storage_bucket_iam_member" "runner_gcs_reader" {
 }
 
 # --- IAM: Permessi per OIDC Pub/Sub -> Cloud Run ---
-# Permetti al SA di Pub/Sub di generare token OIDC impersonando il SA di Cloud Run
 resource "google_service_account_iam_member" "pubsub_sa_token_creator_for_cloud_run_sa" {
-  service_account_id = google_service_account.cloud_run_sa.name # A quale SA si applica la policy
+  service_account_id = google_service_account.cloud_run_sa.name
   role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com" # Chi ottiene il permesso
+  member             = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
 
 # --- Cloud Run Invocation Permissions ---
@@ -123,22 +136,15 @@ resource "google_cloud_run_v2_service_iam_member" "allow_unauthenticated" {
   depends_on = [module.cloudrun_processor]
 }
 
-# Questa risorsa è per permettere a Pub/Sub (tramite OIDC) di invocare Cloud Run.
-# Il 'member' è il SA di Pub/Sub, ma il token OIDC sarà firmato con l'identità del 'cloud_run_sa'.
-# Cloud Run verifica che il token sia valido e che il 'cloud_run_sa' (l'identità nel token)
-# sia autorizzato a invocare il servizio.
 resource "google_cloud_run_v2_service_iam_member" "allow_pubsub_oidc_invoker" {
   count      = !var.allow_unauthenticated_invocations ? 1 : 0
   project    = var.gcp_project_id
   name       = module.cloudrun_processor.service_name
   location   = module.cloudrun_processor.service_location
   role       = "roles/run.invoker"
-  # L'identità che deve avere il permesso di invocare è quella specificata
-  # nel token OIDC, cioè il service_account_email della push_config.
-  member     = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  member     = "serviceAccount:${google_service_account.cloud_run_sa.email}" # L'identità nel token OIDC
   depends_on = [module.cloudrun_processor, google_service_account.cloud_run_sa]
 }
-
 
 # --- Pub/Sub Subscription ---
 resource "google_pubsub_subscription" "processor_subscription" {
@@ -152,7 +158,7 @@ resource "google_pubsub_subscription" "processor_subscription" {
     dynamic "oidc_token" {
       for_each = !var.allow_unauthenticated_invocations ? [1] : []
       content {
-        service_account_email = google_service_account.cloud_run_sa.email # Il SA usato per firmare il token OIDC
+        service_account_email = google_service_account.cloud_run_sa.email
         audience              = module.cloudrun_processor.service_url
       }
     }
@@ -160,7 +166,7 @@ resource "google_pubsub_subscription" "processor_subscription" {
   depends_on = [
     module.cloudrun_processor,
     google_cloud_run_v2_service_iam_member.allow_unauthenticated,
-    google_cloud_run_v2_service_iam_member.allow_pubsub_oidc_invoker, // Dipende dal corretto invoker
-    google_service_account_iam_member.pubsub_sa_token_creator_for_cloud_run_sa // Dipende dalla configurazione tokenCreator
+    google_cloud_run_v2_service_iam_member.allow_pubsub_oidc_invoker,
+    google_service_account_iam_member.pubsub_sa_token_creator_for_cloud_run_sa
   ]
 }
