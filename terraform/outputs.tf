@@ -55,7 +55,7 @@ output "generate_sniffer_key_command" {
 
 output "test_vm_sniffer_setup_instructions" {
   description = "Istruzioni per configurare e avviare lo sniffer sulla VM di test."
-  value = <<EOT
+  value       = <<EOT
 
 ----------------------------------------------------------------------------------------------------
 ISTRUZIONI PER LO SNIFFER SULLA VM DI TEST ('${module.test_generator_vm.vm_name}'):
@@ -63,9 +63,10 @@ ISTRUZIONI PER LO SNIFFER SULLA VM DI TEST ('${module.test_generator_vm.vm_name}
 L'ambiente base sulla VM è stato preparato (Docker installato, immagine sniffer '${var.sniffer_image_uri}' pullata).
 Per eseguire lo sniffer, devi fornirgli la chiave del Service Account '${google_service_account.sniffer_sa.email}'.
 
-1.  PREPARAZIONE CHIAVE SERVICE ACCOUNT DELLO SNIFFER (sulla TUA MACCHINA LOCALE):
-    Esegui questo comando per creare (o sovrascrivere) 'sniffer-key.json' per '${google_service_account.sniffer_sa.email}':
-    ${self.generate_sniffer_key_command}
+    1.  PREPARAZIONE CHIAVE SERVICE ACCOUNT DELLO SNIFFER (sulla TUA MACCHINA LOCALE):
+        Esegui il comando gcloud mostrato nell'output di Terraform chiamato 'generate_sniffer_key_command'.
+        Questo comando creerà (o sovrascriverà) './sniffer-key.json' per il Service Account '${google_service_account.sniffer_sa.email}'.
+        (Il comando sarà simile a: gcloud iam service-accounts keys create ./sniffer-key.json --iam-account=${google_service_account.sniffer_sa.email})
 
 2.  ACCEDI ALLA VM DI TEST VIA SSH (dalla TUA MACCHINA LOCALE):
     ${module.test_generator_vm.ssh_command}

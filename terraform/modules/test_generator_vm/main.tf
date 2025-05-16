@@ -27,10 +27,10 @@ resource "google_compute_instance" "generator" {
   // Le chiavi qui (es. VM_SNIFFER_IMAGE_URI) devono corrispondere 
   // a quelle lette da get_metadata_value() nello script .sh.
   metadata = {
-    VM_SNIFFER_IMAGE_URI        = var.sniffer_image_uri_val
-    VM_SNIFFER_GCP_PROJECT_ID   = var.sniffer_gcp_project_id_val
-    VM_SNIFFER_INCOMING_BUCKET  = var.sniffer_incoming_bucket_val
-    VM_SNIFFER_PUBSUB_TOPIC_ID  = var.sniffer_pubsub_topic_id_val
+    VM_SNIFFER_IMAGE_URI       = var.sniffer_image_uri_val
+    VM_SNIFFER_GCP_PROJECT_ID  = var.sniffer_gcp_project_id_val
+    VM_SNIFFER_INCOMING_BUCKET = var.sniffer_incoming_bucket_val
+    VM_SNIFFER_PUBSUB_TOPIC_ID = var.sniffer_pubsub_topic_id_val
   }
 
   // Carica lo script di startup da un file esterno
@@ -41,7 +41,7 @@ resource "google_compute_instance" "generator" {
 
 resource "google_compute_firewall" "allow_ssh_vm" {
   project = var.project_id
-  name    = "${var.vm_name}-allow-ssh" 
+  name    = "${var.vm_name}-allow-ssh"
   network = "default"
 
   allow {
