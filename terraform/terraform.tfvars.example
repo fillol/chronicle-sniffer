@@ -1,23 +1,21 @@
-gcp_project_id              = ""
-gcp_region                  = ""
-gcs_location                = ""
-base_name                   = ""
+gcp_project_id = "gruppo-2"
+gcp_region     = "europe-west8"
+gcs_location   = "EU"
+base_name      = "chronicle-sniffer"
 
-incoming_pcap_bucket_name = "IN_BUCKET_NAME"
-processed_udm_bucket_name = "OUT_BUCKET_NAME" 
+incoming_pcap_bucket_name = "chronicle-sniffer-incoming-pcaps"
+processed_udm_bucket_name = "chronicle-sniffer-processed-udm"
 
-processor_cloud_run_image = "URI_IMMAGINE_PUSHATA_SU_ARTIFACT_REGISTRY"
+processor_cloud_run_image = "europe-west8-docker.pkg.dev/gruppo-2/chronicle-sniffer/pcap-processor:latest"
+sniffer_image_uri         = "europe-west8-docker.pkg.dev/gruppo-2/chronicle-sniffer/onprem-sniffer:latest" // Assicurati che esista!
 
-test_vm_zone                = ""
-allow_unauthenticated_invocations = false
+test_vm_zone                      = "europe-west8-b"
+allow_unauthenticated_invocations = false // Manteniamo OIDC per Cloud Run
 
 cloud_run_max_concurrency = 10
 cloud_run_cpu             = "1000m"
 cloud_run_memory          = "512Mi"
 
-// ssh_source_ranges = ["IP_PUBBLICO/32"]
+// ssh_source_ranges = ["IL_TUO_IP_PUBBLICO/32"] // CAMBIARE!
 // enable_bucket_versioning  = true
-// cmek_key_name             = "" // Lascia vuoto per usare Google-managed keys
-
-// Per VM-test
-sniffer_image_uri         = "URI_IMMAGINE_PUSHATA_SU_ARTIFACT_REGISTRY" 
+// cmek_key_name             = ""

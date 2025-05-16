@@ -36,6 +36,11 @@ variable "processor_cloud_run_image" {
   type        = string
 }
 
+variable "sniffer_image_uri" {
+  description = "L'URI completo dell'immagine Docker per lo sniffer (da Artifact Registry)."
+  type        = string
+}
+
 variable "test_vm_zone" {
   description = "La zona GCP per la VM di test."
   type        = string
@@ -69,7 +74,7 @@ variable "cloud_run_memory" {
 variable "ssh_source_ranges" {
   description = "Lista di CIDR IP permessi per SSH alla VM di test."
   type        = list(string)
-  default     = ["0.0.0.0/0"] # Lasciato per semplicità di test, MA DA CAMBIARE!
+  default     = ["0.0.0.0/0"]
 }
 
 variable "enable_bucket_versioning" {
@@ -81,5 +86,5 @@ variable "enable_bucket_versioning" {
 variable "cmek_key_name" {
   description = "Nome della chiave KMS per la crittografia CMEK dei bucket (lasciare vuoto per usare Google-managed keys)."
   type        = string
-  default     = "" # Opzionale: projects/PROJECT_ID/locations/LOCATION/keyRings/KEYRING_NAME/cryptoKeys/KEY_NAME
+  default     = ""
 }

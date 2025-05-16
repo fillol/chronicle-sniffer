@@ -1,17 +1,22 @@
-data "google_project" "project" { # Spostato qui per essere accessibile globalmente
+data "google_project" "project" {
   project_id = var.gcp_project_id
 }
 
-# --- Service Accounts (Creati prima per passarli ai moduli) ---
+# --- Service Accounts ---
 resource "google_service_account" "sniffer_sa" {
   project      = var.gcp_project_id
-  account_id   = "${var.base_name}-sniffer-sa"
+  account_id   = "${var.base_name}-snfr-sa" # Accorciato per sicurezza lunghezza
   display_name = "Service Account for On-Prem Sniffers"
+}
+
+resource "google_service_account_key" "sniffer_sa_key" {
+  service_account_id = google_service_account.sniffer_sa.name
+  # Nessun lifecycle prevent_destroy = true qui, la chiave è gestita da TF
 }
 
 resource "google_service_account" "cloud_run_sa" {
   project      = var.gcp_project_id
-  account_id   = "${var.base_name}-runner-sa"
+  account_id   = "${var.base_name}-run-sa" # Accorciato
   display_name = "Service Account for Cloud Run Processor"
 }
 
@@ -23,7 +28,7 @@ module "gcs_buckets" {
   incoming_pcap_bucket_name = var.incoming_pcap_bucket_name
   processed_udm_bucket_name = var.processed_udm_bucket_name
   enable_versioning         = var.enable_bucket_versioning
-  cmek_key_name             = var.cmek_key_name # Passa la variabile CMEK
+  cmek_key_name             = var.cmek_key_name
 }
 
 module "pubsub_topic" {
@@ -38,12 +43,11 @@ module "cloudrun_processor" {
   region                = var.gcp_region
   service_name          = "${var.base_name}-processor"
   image_uri             = var.processor_cloud_run_image
-  service_account_email = google_service_account.cloud_run_sa.email # Passa l'email del SA
+  service_account_email = google_service_account.cloud_run_sa.email
   env_vars = {
     INCOMING_BUCKET = module.gcs_buckets.incoming_pcap_bucket_id
     OUTPUT_BUCKET   = module.gcs_buckets.processed_udm_bucket_id
     GCP_PROJECT_ID  = var.gcp_project_id
-    #PORT            = "8080" Error: Error creating Service: googleapi: Error 400: template.containers[0].env: The following reserved env names were provided: PORT, PORT. These values are automatically set by the system.
   }
   max_concurrency = var.cloud_run_max_concurrency
   cpu_limit       = var.cloud_run_cpu
@@ -55,24 +59,39 @@ module "test_generator_vm" {
   project_id        = var.gcp_project_id
   zone              = var.test_vm_zone
   vm_name           = "${var.base_name}-test-generator"
-  ssh_source_ranges = var.ssh_source_ranges # Passa i source ranges
+  ssh_source_ranges = var.ssh_source_ranges
+
+  # Passaggio delle nuove variabili per lo sniffer automatizzato
+  sniffer_image_to_run    = var.sniffer_image_uri
+  sniffer_gcp_project_id  = var.gcp_project_id
+  sniffer_incoming_bucket = module.gcs_buckets.incoming_pcap_bucket_id
+  sniffer_pubsub_topic_id = module.pubsub_topic.topic_id
+  # Non passiamo più la chiave SA direttamente, verrà gestita dall'utente
+  # sniffer_sa_key_json_base64 = base64encode(google_service_account_key.sniffer_sa_key.private_key)
+
+  depends_on = [
+    # google_service_account_key.sniffer_sa_key, # Non più una dipendenza diretta per i metadati
+    google_service_account.sniffer_sa, # Il SA deve esistere per generare la chiave
+    module.gcs_buckets,
+    module.pubsub_topic
+  ]
 }
 
-# --- IAM: Sniffer Permissions ---
-resource "google_pubsub_topic_iam_member" "sniffer_pubsub_publisher" {
+# --- IAM: Sniffer SA Permissions ---
+resource "google_pubsub_topic_iam_member" "sniffer_sa_pubsub_publisher" {
   project = var.gcp_project_id
   topic   = module.pubsub_topic.topic_id
   role    = "roles/pubsub.publisher"
   member  = "serviceAccount:${google_service_account.sniffer_sa.email}"
 }
 
-resource "google_storage_bucket_iam_member" "sniffer_gcs_writer" {
+resource "google_storage_bucket_iam_member" "sniffer_sa_gcs_writer" {
   bucket = module.gcs_buckets.incoming_pcap_bucket_id
   role   = "roles/storage.objectCreator"
   member = "serviceAccount:${google_service_account.sniffer_sa.email}"
 }
 
-# --- IAM: Cloud Run Processor Permissions (oltre al SA associato al servizio) ---
+# --- IAM: Cloud Run Processor SA Permissions ---
 resource "google_storage_bucket_iam_member" "runner_gcs_writer" {
   bucket = module.gcs_buckets.processed_udm_bucket_id
   role   = "roles/storage.objectCreator"
@@ -85,8 +104,13 @@ resource "google_storage_bucket_iam_member" "runner_gcs_reader" {
   member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
 }
 
-# Rimossa la risorsa google_project_iam_member.runner_logging_writer
-# I log standard di Cloud Run dovrebbero funzionare senza binding a livello di progetto per il SA.
+# --- IAM: Permessi per OIDC Pub/Sub -> Cloud Run ---
+# Permetti al SA di Pub/Sub di generare token OIDC impersonando il SA di Cloud Run
+resource "google_service_account_iam_member" "pubsub_sa_token_creator_for_cloud_run_sa" {
+  service_account_id = google_service_account.cloud_run_sa.name # A quale SA si applica la policy
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com" # Chi ottiene il permesso
+}
 
 # --- Cloud Run Invocation Permissions ---
 resource "google_cloud_run_v2_service_iam_member" "allow_unauthenticated" {
@@ -99,15 +123,22 @@ resource "google_cloud_run_v2_service_iam_member" "allow_unauthenticated" {
   depends_on = [module.cloudrun_processor]
 }
 
-resource "google_cloud_run_v2_service_iam_member" "allow_pubsub_oidc" {
+# Questa risorsa è per permettere a Pub/Sub (tramite OIDC) di invocare Cloud Run.
+# Il 'member' è il SA di Pub/Sub, ma il token OIDC sarà firmato con l'identità del 'cloud_run_sa'.
+# Cloud Run verifica che il token sia valido e che il 'cloud_run_sa' (l'identità nel token)
+# sia autorizzato a invocare il servizio.
+resource "google_cloud_run_v2_service_iam_member" "allow_pubsub_oidc_invoker" {
   count      = !var.allow_unauthenticated_invocations ? 1 : 0
   project    = var.gcp_project_id
   name       = module.cloudrun_processor.service_name
   location   = module.cloudrun_processor.service_location
   role       = "roles/run.invoker"
-  member     = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
-  depends_on = [module.cloudrun_processor]
+  # L'identità che deve avere il permesso di invocare è quella specificata
+  # nel token OIDC, cioè il service_account_email della push_config.
+  member     = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+  depends_on = [module.cloudrun_processor, google_service_account.cloud_run_sa]
 }
+
 
 # --- Pub/Sub Subscription ---
 resource "google_pubsub_subscription" "processor_subscription" {
@@ -121,7 +152,7 @@ resource "google_pubsub_subscription" "processor_subscription" {
     dynamic "oidc_token" {
       for_each = !var.allow_unauthenticated_invocations ? [1] : []
       content {
-        service_account_email = google_service_account.cloud_run_sa.email
+        service_account_email = google_service_account.cloud_run_sa.email # Il SA usato per firmare il token OIDC
         audience              = module.cloudrun_processor.service_url
       }
     }
@@ -129,6 +160,7 @@ resource "google_pubsub_subscription" "processor_subscription" {
   depends_on = [
     module.cloudrun_processor,
     google_cloud_run_v2_service_iam_member.allow_unauthenticated,
-    google_cloud_run_v2_service_iam_member.allow_pubsub_oidc
+    google_cloud_run_v2_service_iam_member.allow_pubsub_oidc_invoker, // Dipende dal corretto invoker
+    google_service_account_iam_member.pubsub_sa_token_creator_for_cloud_run_sa // Dipende dalla configurazione tokenCreator
   ]
 }

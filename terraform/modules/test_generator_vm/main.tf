@@ -3,37 +3,170 @@ resource "google_compute_instance" "generator" {
   name         = var.vm_name
   machine_type = var.machine_type
   zone         = var.zone
-  tags         = ["traffic-generator", var.vm_name] # Tag per la regola firewall
+  tags         = ["traffic-generator", var.vm_name]
 
   boot_disk {
     initialize_params {
       image = var.vm_image
-      size  = 10
-      type  = var.disk_type # Aggiunto tipo disco
+      size  = 20 # Aumentato per Docker e immagini
+      type  = var.disk_type
     }
   }
 
   network_interface {
     network = "default"
-    access_config {} # Per IP esterno
+    access_config {}
   }
 
-  metadata_startup_script = var.startup_script # Usare variabile per flessibilità
   service_account {
-    email  = var.service_account_email
+    email  = var.service_account_email # Se null, usa GCE Default SA. Deve avere roles/artifactregistry.reader
     scopes = var.access_scopes
   }
+
+  metadata = {
+    # Passiamo le info necessarie per configurare lo sniffer sulla VM
+    SNIFFER_IMAGE_URI       = var.sniffer_image_to_run
+    SNIFFER_GCP_PROJECT_ID  = var.sniffer_gcp_project_id
+    SNIFFER_INCOMING_BUCKET = var.sniffer_incoming_bucket
+    SNIFFER_PUBSUB_TOPIC_ID = var.sniffer_pubsub_topic_id
+    # Non passiamo più la chiave SA, verrà montata manualmente
+  }
+
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    set -e 
+    set -o pipefail
+    exec > >(tee /var/log/startup-script.log|logger -t startup-script -s 2>/dev/console) 2>&1
+
+    echo "--- VM Startup Script Iniziato ---"
+
+    get_metadata_value() {
+      curl -s -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/attributes/$1"
+    }
+
+    echo "Recupero metadati..."
+    SNIFFER_IMAGE_FROM_METADATA=$(get_metadata_value "SNIFFER_IMAGE_URI")
+    VM_GCP_PROJECT_ID_FROM_METADATA=$(get_metadata_value "SNIFFER_GCP_PROJECT_ID")
+    VM_INCOMING_BUCKET_FROM_METADATA=$(get_metadata_value "SNIFFER_INCOMING_BUCKET")
+    VM_PUBSUB_TOPIC_ID_FROM_METADATA=$(get_metadata_value "SNIFFER_PUBSUB_TOPIC_ID")
+
+    echo "Valori metadati recuperati:"
+    echo "  SNIFFER_IMAGE_FROM_METADATA: $SNIFFER_IMAGE_FROM_METADATA"
+    echo "  VM_GCP_PROJECT_ID_FROM_METADATA: $VM_GCP_PROJECT_ID_FROM_METADATA"
+    echo "  VM_INCOMING_BUCKET_FROM_METADATA: $VM_INCOMING_BUCKET_FROM_METADATA"
+    echo "  VM_PUBSUB_TOPIC_ID_FROM_METADATA: $VM_PUBSUB_TOPIC_ID_FROM_METADATA"
+    
+    if [ -z "$SNIFFER_IMAGE_FROM_METADATA" ] || [ -z "$VM_GCP_PROJECT_ID_FROM_METADATA" ] || [ -z "$VM_INCOMING_BUCKET_FROM_METADATA" ] || [ -z "$VM_PUBSUB_TOPIC_ID_FROM_METADATA" ]; then
+      echo "ERRORE: Una o più variabili dai metadati non sono impostate o non sono state recuperate correttamente!"
+      exit 1
+    fi
+
+    echo "Installazione pacchetti necessari (curl, jq, docker)..."
+    apt-get update
+    apt-get install -y --no-install-recommends curl jq docker.io docker-compose tcpdump tcpreplay git wget
+
+    echo "Avvio e abilitazione Docker..."
+    systemctl start docker
+    systemctl enable docker
+
+    echo "Configurazione Docker per Artifact Registry..."
+    ARTIFACT_REGISTRY_DOMAIN=$(echo $SNIFFER_IMAGE_FROM_METADATA | cut -d'/' -f1)
+    if [[ -z "$ARTIFACT_REGISTRY_DOMAIN" ]]; then
+        echo "ERRORE: Impossibile estrarre il dominio di Artifact Registry da $SNIFFER_IMAGE_FROM_METADATA"
+        exit 1
+    fi
+    echo "Dominio Artifact Registry rilevato: $ARTIFACT_REGISTRY_DOMAIN"
+    # Questo comando richiede che il SA della VM (GCE Default o custom) abbia i permessi per leggere da AR
+    if ! gcloud auth configure-docker $ARTIFACT_REGISTRY_DOMAIN -q; then
+        echo "ERRORE: Fallita la configurazione di Docker per Artifact Registry. Controlla i permessi del SA della VM (necessita roles/artifactregistry.reader)."
+        gcloud auth list # Mostra l'account attivo
+        exit 1
+    fi
+    
+    echo "Pull dell'immagine Docker dello sniffer da Artifact Registry: $SNIFFER_IMAGE_FROM_METADATA"
+    if ! docker pull $SNIFFER_IMAGE_FROM_METADATA; then
+      echo "ERRORE: Fallito il pull dell'immagine Docker $SNIFFER_IMAGE_FROM_METADATA. Controlla l'URI dell'immagine e i permessi del SA della VM."
+      exit 1
+    fi
+    echo "Pull dell'immagine completato."
+
+    SNIFFER_DIR="/opt/sniffer"
+    SNIFFER_ENV_FILE="$SNIFFER_DIR/.env"
+    SNIFFER_COMPOSE_FILE="$SNIFFER_DIR/docker-compose.yml"
+    SNIFFER_GCP_KEY_TARGET_DIR="/app/gcp-key" # Path interno al container come definito nel compose
+
+    echo "Creazione directory per lo sniffer (se non esistono): $SNIFFER_DIR"
+    mkdir -p $SNIFFER_DIR
+    mkdir -p $SNIFFER_DIR/captures # Per il volume mount di tshark
+    # Non creiamo gcp-key qui, sarà montata dall'utente
+
+    echo "Creazione file .env per lo sniffer in $SNIFFER_ENV_FILE"
+    cat << EOF_ENV > $SNIFFER_ENV_FILE
+GCP_PROJECT_ID=$VM_GCP_PROJECT_ID_FROM_METADATA
+INCOMING_BUCKET=$VM_INCOMING_BUCKET_FROM_METADATA
+PUBSUB_TOPIC_ID=$VM_PUBSUB_TOPIC_ID_FROM_METADATA
+GCP_KEY_FILE=$SNIFFER_GCP_KEY_TARGET_DIR/key.json # Percorso interno al container
+EOF_ENV
+
+    echo "Creazione file docker-compose.yml in $SNIFFER_COMPOSE_FILE"
+    cat << EOF_COMPOSE > $SNIFFER_COMPOSE_FILE
+version: '3.7'
+services:
+  sniffer:
+    image: $SNIFFER_IMAGE_FROM_METADATA # Immagine pullata da Artifact Registry
+    container_name: onprem-sniffer-instance
+    # No restart automatico, l'utente lo avvia
+    env_file:
+      - .env
+    network_mode: "host"
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    volumes:
+      # Questo volume dovrà essere fornito dall'utente al 'docker-compose up'
+      # Lo prepariamo qui come placeholder nel file.
+      # L'utente sostituirà /path/to/local/gcp-key-dir con il percorso reale.
+      - "/path/to/local/gcp-key-dir:$SNIFFER_GCP_KEY_TARGET_DIR:ro"
+      - ./captures:/app/captures # Relativo a $SNIFFER_DIR quando si esegue docker-compose
+EOF_COMPOSE
+    
+    echo "--- VM Startup Script Completato ---"
+    echo "L'ambiente per lo sniffer è stato preparato in $SNIFFER_DIR."
+    echo "L'immagine Docker dello sniffer è stata pullata: $SNIFFER_IMAGE_FROM_METADATA"
+    echo ""
+    echo "ISTRUZIONI PER AVVIARE LO SNIFFER (dopo essersi connessi via SSH alla VM):"
+    echo "1. Assicurati di avere il file della chiave del Service Account 'sniffer-sa' (es. sniffer-key.json) sulla tua macchina locale."
+    echo "2. Crea una directory sulla VM per montare la chiave, ad esempio:"
+    echo "   mkdir -p ~/my-sniffer-key"
+    echo "3. Copia la tua chiave 'sniffer-key.json' in quella directory sulla VM:"
+    echo "   # Dalla TUA MACCHINA LOCALE, in un NUOVO terminale:"
+    echo "   gcloud compute scp /percorso/locale/sniffer-key.json ${var.vm_name}:~/my-sniffer-key/key.json --project ${var.project_id} --zone ${var.zone}"
+    echo "4. Modifica il file $SNIFFER_COMPOSE_FILE sulla VM:"
+    echo "   sudo nano $SNIFFER_COMPOSE_FILE"
+    echo "   Cambia la riga del volume per la chiave da:"
+    echo "     - \"/path/to/local/gcp-key-dir:$SNIFFER_GCP_KEY_TARGET_DIR:ro\""
+    echo "   a (ad esempio):"
+    echo "     - \"\$HOME/my-sniffer-key:$SNIFFER_GCP_KEY_TARGET_DIR:ro\""
+    echo "5. Avvia lo sniffer:"
+    echo "   cd $SNIFFER_DIR"
+    echo "   sudo docker-compose up -d"
+    echo "6. Per controllare i log:"
+    echo "   sudo docker logs onprem-sniffer-instance -f"
+    echo "7. Per generare traffico:"
+    echo "   ping -c 10 google.com"
+    EOT
+
   allow_stopping_for_update = true
 }
 
-resource "google_compute_firewall" "allow_ssh_vm" { # Nome cambiato per evitare conflitti se ne esiste una simile
+resource "google_compute_firewall" "allow_ssh_vm" {
   project = var.project_id
-  name    = "${var.vm_name}-allow-ssh" # Nome univoco per la regola firewall
+  name    = "${var.vm_name}-allow-ssh"
   network = "default"
   allow {
     protocol = "tcp"
     ports    = ["22"]
   }
-  target_tags   = [var.vm_name]         # Applica solo a questa VM
-  source_ranges = var.ssh_source_ranges # USA LA VARIABILE PER GLI IP PERMESSI
+  target_tags   = [var.vm_name]
+  source_ranges = var.ssh_source_ranges
 }

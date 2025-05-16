@@ -4,15 +4,15 @@
 echo "--- Sniffer Container Starting ---"
 
 # --- Configuration (Environment Variables) ---
-GCP_PROJECT_ID="${GCP_PROJECT_ID}" # Necessario per gcloud pubsub
-INCOMING_BUCKET="${INCOMING_BUCKET}" # Nome bucket GCS (senza gs://)
-PUBSUB_TOPIC_ID="${PUBSUB_TOPIC_ID}" # ID completo del topic (projects/PROJECT_ID/topics/TOPIC_NAME)
-GCP_KEY_FILE="${GCP_KEY_FILE:-/app/gcp-key/key.json}" # Percorso chiave SA
+GCP_PROJECT_ID="${GCP_PROJECT_ID}"
+INCOMING_BUCKET="${INCOMING_BUCKET}" 
+PUBSUB_TOPIC_ID="${PUBSUB_TOPIC_ID}" 
+GCP_KEY_FILE="${GCP_KEY_FILE:-/app/gcp-key/key.json}" # Percorso chiave SA nel container
 
 # tshark options
-INTERFACE="" # Rilevata automaticamente
-ROTATE="${ROTATE:-"-b filesize:10240 -b duration:60"}" # Default: 10MB o 60s
-LIMITS="${LIMITS:-}" # Nessun limite di default
+INTERFACE="" 
+ROTATE="${ROTATE:-"-b filesize:10240 -b duration:60"}" 
+LIMITS="${LIMITS:-}" 
 CAPTURE_DIR="/app/captures"
 FILENAME_BASE="capture"
 
@@ -23,19 +23,21 @@ if [ -z "$GCP_PROJECT_ID" ] || [ -z "$INCOMING_BUCKET" ] || [ -z "$PUBSUB_TOPIC_
 fi
 if [ ! -f "$GCP_KEY_FILE" ]; then
     echo "Error: Service Account key file not found at $GCP_KEY_FILE."
-    echo "Mount the key using: -v /path/to/your/key.json:/app/gcp-key/key.json:ro"
+    echo "Ensure the key is correctly mounted to this path in the container."
     exit 1
 fi
 if ! command -v tshark &> /dev/null; then echo "Error: tshark not found."; exit 1; fi
 if ! command -v gcloud &> /dev/null; then echo "Error: gcloud not found."; exit 1; fi
 
 # Activate Service Account
-echo "Activating Service Account..."
+echo "Activating Service Account using key $GCP_KEY_FILE..."
 gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" --project="$GCP_PROJECT_ID"
 if [ $? -ne 0 ]; then echo "Error: Failed to activate service account."; exit 1; fi
 echo "Service Account activated."
+gcloud auth list # Mostra l'account attivo (dovrebbe essere sniffer_sa)
 
 # Auto-detect active network interface
+# ... (codice auto-detect come prima) ...
 echo "Searching for active network interface..."
 while true; do
     for iface_path in /sys/class/net/*; do
@@ -51,6 +53,7 @@ while true; do
     sleep 5
 done
 
+
 # --- Capture and Process Loop ---
 echo "Starting tshark capture..."
 echo "  Interface: $INTERFACE"
@@ -59,11 +62,10 @@ echo "  Output Dir: $CAPTURE_DIR"
 echo "  GCS Bucket: gs://${INCOMING_BUCKET}"
 echo "  Pub/Sub Topic: ${PUBSUB_TOPIC_ID}"
 
-# Start tshark in the background
 tshark $INTERFACE $ROTATE $LIMITS -w "$CAPTURE_DIR/$FILENAME_BASE.pcap" &
 TSHARK_PID=$!
 echo "tshark started with PID $TSHARK_PID"
-sleep 5 # Give tshark time to start
+sleep 5 
 
 processed_files=()
 is_processed() {
@@ -72,7 +74,6 @@ is_processed() {
   return 1
 }
 
-# Monitor loop
 while kill -0 $TSHARK_PID 2>/dev/null; do
     active_file_path=$(lsof -p $TSHARK_PID -Fn 2>/dev/null | grep '^n' | cut -c2- | grep "$CAPTURE_DIR/.*\.pcap$" | head -n 1)
     active_file=$(basename "$active_file_path" 2>/dev/null)
@@ -85,12 +86,10 @@ while kill -0 $TSHARK_PID 2>/dev/null; do
 
         echo "[$(date)] Detected completed file: $base_pcap_file"
 
-        # Upload to GCS using gcloud storage
         echo "[$(date)] Uploading $base_pcap_file to gs://${INCOMING_BUCKET}/..."
         if gcloud storage cp "$pcap_file" "gs://${INCOMING_BUCKET}/" --project "$GCP_PROJECT_ID"; then
             echo "[$(date)] Upload successful."
 
-            # Publish notification to Pub/Sub
             echo "[$(date)] Publishing notification for $base_pcap_file to ${PUBSUB_TOPIC_ID}..."
             if gcloud pubsub topics publish "$PUBSUB_TOPIC_ID" --message "$base_pcap_file" --project "$GCP_PROJECT_ID"; then
                 echo "[$(date)] Notification published successfully."
@@ -104,7 +103,7 @@ while kill -0 $TSHARK_PID 2>/dev/null; do
             echo "[$(date)] Error: Failed to upload $base_pcap_file to GCS."
         fi
     done
-    sleep 10 # Check interval
+    sleep 10 
 done
 
 echo "tshark process ended. Exiting sniffer."
