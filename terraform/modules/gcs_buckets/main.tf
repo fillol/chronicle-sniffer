@@ -29,7 +29,7 @@ resource "google_storage_bucket" "processed_udm" {
   project                     = var.project_id
   name                        = var.processed_udm_bucket_name
   location                    = var.location
-  force_destroy               = false
+  force_destroy               = true // siamo in fase di test, quindi possiamo perdere le catture
   uniform_bucket_level_access = true
 
   dynamic "versioning" {
