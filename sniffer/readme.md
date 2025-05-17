@@ -58,9 +58,3 @@ All variables must be set for the container to run correctly.
   Integrate container scanners (e.g., Docker Content Trust or third-party tools) into your CI/CD pipeline.
 * **Semantic Tagging**
   Employ semantic version tags (e.g., `v1.2.3`) instead of `latest` for predictable deployments and rollbacks.
-
-## Support & Contributing
-
-* **Documentation**: Visit our GitHub repo for detailed guides and advanced examples.
-* **Bug Reports**: Open an issue in the repo.
-* **Feature Requests**: Share your ideas in the “Discussions” section.

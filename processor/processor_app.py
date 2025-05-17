@@ -1,4 +1,5 @@
-# processor/processor_app.py - Applicazione Flask per Cloud Run (Sfrutta il mio progetto cybersecurity)
+# processor/processor_app.py - Cloud Run Flask App for PCAP to UDM processing.
+# Listens to Pub/Sub, downloads PCAP from GCS, converts via tshark & json2udm_cloud.py, uploads UDM to GCS.
 
 import base64
 import json
@@ -9,43 +10,40 @@ import logging
 from flask import Flask, request, Response, jsonify
 
 from google.cloud import storage
-# from google.cloud import logging as cloud_logging # Non sembra essere usato attivamente
+# from google.cloud import logging as cloud_logging # Not actively used
 
 # --- Configuration ---
 INCOMING_BUCKET_NAME = os.environ.get("INCOMING_BUCKET")
 OUTPUT_BUCKET_NAME = os.environ.get("OUTPUT_BUCKET")
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID") # Anche se non usato direttamente qui, è buona pratica averlo
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID") # For GCS client context
 
 if not INCOMING_BUCKET_NAME:
-    logging.critical("CRITICAL ERROR: INCOMING_BUCKET environment variable not set.")
-    # In un'app reale, potresti voler terminare o impedire l'avvio di Flask
+    logging.critical("CRITICAL: INCOMING_BUCKET env var not set.")
 if not OUTPUT_BUCKET_NAME:
-    logging.critical("CRITICAL ERROR: OUTPUT_BUCKET environment variable not set.")
+    logging.critical("CRITICAL: OUTPUT_BUCKET env var not set.")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = Flask(__name__)
 
 # --- Google Cloud Storage Client Initialization ---
-# Variabile globale per l'istanza del client
-storage_client_instance = None
+storage_client_instance = None # Global GCS client
 try:
     storage_client_instance = storage.Client()
-    logging.info("Google Cloud Storage client object created successfully.")
+    logging.info("GCS client created.")
 except Exception as e:
-    logging.critical(f"CRITICAL ERROR: Failed to create Google Cloud Storage client object: {e}", exc_info=True)
-    # Se il client non può essere creato, l'app non funzionerà con GCS.
-    # get_storage_client() gestirà questo caso restituendo None.
+    logging.critical(f"CRITICAL: Failed to create GCS client: {e}", exc_info=True)
+    # get_verified_storage_client() will handle this.
 
-# Flags per tracciare la verifica dei bucket (semplice caching per istanza worker)
-_incoming_bucket_verified = False
+_incoming_bucket_verified = False # Worker-instance flags for bucket verification
 _output_bucket_verified = False
 
 def get_verified_storage_client():
     """
-    Restituisce l'istanza del client di storage se i bucket necessari sono verificati.
-    Tenta di verificare i bucket se non ancora fatto e il client esiste.
-    Restituisce None se il client non è stato creato o i bucket non sono accessibili/verificati.
+    Returns GCS client if buckets are verified. Verifies lazily on first call per worker.
+    Lazy verification helps if IAM policies (e.g., via Terraform) need time to propagate
+    post-deployment, avoiding a separate re-deploy just for permissions.
+    Returns None on client creation failure or if buckets aren't accessible.
     """
     global _incoming_bucket_verified, _output_bucket_verified
 
@@ -55,82 +53,65 @@ def get_verified_storage_client():
 
     client_to_use = storage_client_instance
 
-    # Verifica il bucket di input se non già fatto
     if not _incoming_bucket_verified:
-        if not INCOMING_BUCKET_NAME: # Controllo di sicurezza
-            logging.error("INCOMING_BUCKET_NAME is not set, cannot verify.")
+        if not INCOMING_BUCKET_NAME:
+            logging.error("INCOMING_BUCKET_NAME not set; cannot verify.")
             return None
         try:
-            bucket = client_to_use.lookup_bucket(INCOMING_BUCKET_NAME)
-            if bucket:
-                logging.info(f"Incoming bucket '{INCOMING_BUCKET_NAME}' successfully verified.")
+            if client_to_use.lookup_bucket(INCOMING_BUCKET_NAME):
+                logging.info(f"Incoming bucket '{INCOMING_BUCKET_NAME}' verified.")
                 _incoming_bucket_verified = True
             else:
-                logging.error(f"Verification failed: Incoming bucket '{INCOMING_BUCKET_NAME}' not found or no access.")
-                return None # Fallisce se il bucket non è accessibile
-        except Exception as e:
-            logging.error(f"Exception during incoming bucket ('{INCOMING_BUCKET_NAME}') verification: {e}", exc_info=True)
-            return None
-
-    # Verifica il bucket di output se non già fatto
-    if not _output_bucket_verified:
-        if not OUTPUT_BUCKET_NAME: # Controllo di sicurezza
-            logging.error("OUTPUT_BUCKET_NAME is not set, cannot verify.")
-            return None
-        try:
-            bucket = client_to_use.lookup_bucket(OUTPUT_BUCKET_NAME)
-            if bucket:
-                logging.info(f"Output bucket '{OUTPUT_BUCKET_NAME}' successfully verified.")
-                _output_bucket_verified = True
-            else:
-                logging.error(f"Verification failed: Output bucket '{OUTPUT_BUCKET_NAME}' not found or no access.")
+                logging.error(f"Failed to verify incoming bucket '{INCOMING_BUCKET_NAME}'.")
                 return None
         except Exception as e:
-            logging.error(f"Exception during output bucket ('{OUTPUT_BUCKET_NAME}') verification: {e}", exc_info=True)
+            logging.error(f"Exception verifying incoming bucket '{INCOMING_BUCKET_NAME}': {e}", exc_info=True)
+            return None
+
+    if not _output_bucket_verified:
+        if not OUTPUT_BUCKET_NAME:
+            logging.error("OUTPUT_BUCKET_NAME not set; cannot verify.")
+            return None
+        try:
+            if client_to_use.lookup_bucket(OUTPUT_BUCKET_NAME):
+                logging.info(f"Output bucket '{OUTPUT_BUCKET_NAME}' verified.")
+                _output_bucket_verified = True
+            else:
+                logging.error(f"Failed to verify output bucket '{OUTPUT_BUCKET_NAME}'.")
+                return None
+        except Exception as e:
+            logging.error(f"Exception verifying output bucket '{OUTPUT_BUCKET_NAME}': {e}", exc_info=True)
             return None
             
     if _incoming_bucket_verified and _output_bucket_verified:
         return client_to_use
     else:
-        # Questo non dovrebbe accadere se la logica sopra è corretta e i bucket esistono/sono accessibili
-        logging.error("Bucket verification flags indicate failure, but no specific error was caught. Returning no client.")
+        logging.error("Bucket verification failed. No client provided.")
         return None
 
 # --- Health Check Route ---
 @app.route('/', methods=['GET'])
 def health_check():
-    """Health check endpoint."""
-    # Potresti opzionalmente verificare la disponibilità del client GCS qui per un health check più completo
-    # client = get_verified_storage_client()
-    # if client:
-    #     return jsonify(status="ok", storage_ready=True), 200
-    # else:
-    #     # Se il client non è pronto, potresti voler restituire uno stato degradato
-    #     # ma per la startup probe di Cloud Run, un semplice 200 OK è spesso sufficiente
-    #     # per indicare che l'app Flask è partita.
-    #     return jsonify(status="ok", storage_ready=False), 200 # o 503 se vuoi che la probe fallisca
+    """Basic health check for Cloud Run liveness probes."""
     return jsonify(status="ok"), 200
 
 # --- Route for Pub/Sub Push ---
 @app.route('/', methods=['POST'])
 def process_pcap_notification():
-    # Ottieni il client di storage (e verifica i bucket se è la prima volta per questa istanza)
-    # Questa chiamata ora gestisce il logging degli errori di verifica internamente.
+    """Handles Pub/Sub notifications for new PCAP files."""
     active_storage_client = get_verified_storage_client()
-
     if not active_storage_client:
-        # get_verified_storage_client() logga già l'errore specifico.
-        # Pub/Sub ritenterà questo messaggio in caso di 500.
-        return "Internal Server Error: Storage client not available or buckets not accessible.", 500
+        # Error logged by get_verified_storage_client(). 500 for Pub/Sub retry.
+        return "Internal Server Error: GCS client/bucket issue.", 500
 
     envelope = request.get_json(silent=True)
     if not envelope:
-        logging.error("Bad Request: No JSON payload received.")
-        return "Bad Request: No JSON payload", 400
+        logging.error("Bad Request: No JSON payload.")
+        return "Bad Request: No JSON payload", 400 # No retry
 
     if not isinstance(envelope, dict) or "message" not in envelope:
-        logging.error(f"Bad Request: Invalid Pub/Sub message format: {envelope}")
-        return "Bad Request: Invalid Pub/Sub message format", 400
+        logging.error(f"Bad Request: Invalid Pub/Sub format: {envelope}")
+        return "Bad Request: Invalid Pub/Sub format", 400
 
     pubsub_message = envelope["message"]
     pcap_filename = ""
@@ -138,87 +119,79 @@ def process_pcap_notification():
     if isinstance(pubsub_message, dict) and "data" in pubsub_message:
         try:
             pcap_filename = base64.b64decode(pubsub_message["data"]).decode("utf-8").strip()
-            logging.info(f"Received notification for pcap file: {pcap_filename}")
+            logging.info(f"Notification for pcap: {pcap_filename}")
         except Exception as e:
-            logging.error(f"Error decoding Pub/Sub message data: {e}", exc_info=True)
-            return "Bad Request: Could not decode message data", 400
+            logging.error(f"Error decoding Pub/Sub data: {e}", exc_info=True)
+            return "Bad Request: Cannot decode message data", 400
     else:
-         logging.error(f"Bad Request: Invalid Pub/Sub message structure: {pubsub_message}")
-         return "Bad Request: Invalid Pub/Sub message structure", 400
+         logging.error(f"Bad Request: Invalid Pub/Sub structure: {pubsub_message}")
+         return "Bad Request: Invalid Pub/Sub structure", 400
 
-    if not pcap_filename or '/' in pcap_filename: # Basic check for invalid/path traversal
-        logging.error(f"Bad Request: Invalid pcap filename received: '{pcap_filename}'")
+    if not pcap_filename or '/' in pcap_filename: # Basic filename validation
+        logging.error(f"Bad Request: Invalid pcap filename: '{pcap_filename}'")
         return "Bad Request: Invalid pcap filename", 400
 
     # --- Processing Steps ---
     with tempfile.TemporaryDirectory() as temp_dir:
         local_pcap_path = os.path.join(temp_dir, pcap_filename)
-        local_json_path = os.path.join(temp_dir, pcap_filename + ".json") # tshark output
+        local_json_path = os.path.join(temp_dir, pcap_filename + ".json") # tshark JSON output
         base_output_name = os.path.splitext(pcap_filename)[0]
-        udm_output_filename = f"{base_output_name}.udm.json" # json2udm output
+        udm_output_filename = f"{base_output_name}.udm.json" # Final UDM output name
         local_udm_path = os.path.join(temp_dir, udm_output_filename)
 
         try:
             # 1. Download pcap from GCS
             logging.info(f"Downloading gs://{INCOMING_BUCKET_NAME}/{pcap_filename} to {local_pcap_path}")
-            blob = active_storage_client.bucket(INCOMING_BUCKET_NAME).blob(pcap_filename)
-            blob.download_to_filename(local_pcap_path)
+            active_storage_client.bucket(INCOMING_BUCKET_NAME).blob(pcap_filename).download_to_filename(local_pcap_path)
             logging.info("Download complete.")
 
-            # 2. Convert pcap to JSON using tshark
+            # 2. Convert pcap to JSON (tshark)
             logging.info(f"Converting {local_pcap_path} to JSON...")
             tshark_command = ["tshark", "-r", local_pcap_path, "-T", "json"]
             with open(local_json_path, "w") as json_file:
                 process = subprocess.run(tshark_command, stdout=json_file, stderr=subprocess.PIPE, text=True, check=True)
-            logging.info(f"tshark conversion successful. Output at {local_json_path}")
-            if process.stderr: logging.warning(f"tshark stderr: {process.stderr}")
+            logging.info(f"tshark conversion successful: {local_json_path}")
+            if process.stderr: logging.warning(f"tshark stderr: {process.stderr.strip()}")
 
-            # 3. Convert JSON to UDM using the Python script
-            logging.info(f"Converting {local_json_path} to UDM ({local_udm_path})...")
+            # 3. Convert JSON to UDM (json2udm_cloud.py)
+            logging.info(f"Converting {local_json_path} to UDM: {local_udm_path}")
             udm_script_command = ["python3", "/app/json2udm_cloud.py", local_json_path, local_udm_path]
             process = subprocess.run(udm_script_command, capture_output=True, text=True, check=True)
-            logging.info(f"UDM conversion successful.")
+            logging.info(f"UDM conversion script done.")
             if process.stdout: logging.info(f"json2udm_cloud.py stdout: {process.stdout.strip()}")
             if process.stderr: logging.warning(f"json2udm_cloud.py stderr: {process.stderr.strip()}")
             
-            # Controlla se il file UDM è stato creato e non è vuoto
             if not os.path.exists(local_udm_path) or os.path.getsize(local_udm_path) == 0:
-                logging.error(f"UDM file {local_udm_path} was not created or is empty after conversion. Check json2udm_cloud.py logs.")
-                # Potrebbe essere un 500 perché il processamento è fallito, PubSub ritenterà
-                return "Internal Server Error: UDM file generation failed", 500
+                logging.error(f"UDM file {local_udm_path} missing or empty post-conversion.")
+                return "Internal Server Error: UDM generation failed.", 500 # Retry
 
-            # 4. Upload UDM JSON to GCS Output Bucket
+            # 4. Upload UDM JSON to GCS
             logging.info(f"Uploading {local_udm_path} to gs://{OUTPUT_BUCKET_NAME}/{udm_output_filename}")
-            output_blob = active_storage_client.bucket(OUTPUT_BUCKET_NAME).blob(udm_output_filename)
-            output_blob.upload_from_filename(local_udm_path)
+            active_storage_client.bucket(OUTPUT_BUCKET_NAME).blob(udm_output_filename).upload_from_filename(local_udm_path)
             logging.info("Upload complete.")
 
             logging.info(f"Successfully processed {pcap_filename}")
-            return Response(status=204) # 204 No Content
+            return Response(status=204) # OK, No Content for Pub/Sub ACK
 
         except storage.exceptions.NotFound:
-             logging.error(f"Error: pcap file gs://{INCOMING_BUCKET_NAME}/{pcap_filename} not found.", exc_info=True)
-             # Acknowledge message (2xx) so Pub/Sub doesn't retry for a non-existent file.
-             return Response(status=204)
+             logging.error(f"Error: pcap gs://{INCOMING_BUCKET_NAME}/{pcap_filename} not found.", exc_info=True)
+             return Response(status=204) # ACK Pub/Sub (don't retry for non-existent file)
         except subprocess.CalledProcessError as e:
-            logging.error(f"Error during subprocess execution: {e.cmd}", exc_info=True)
-            # logging.error(f"Command: {' '.join(e.cmd)}") # Già in exc_info con Python 3.7+
-            logging.error(f"Return Code: {e.returncode}")
-            if e.stdout: logging.error(f"Stdout: {e.stdout.strip()}")
-            if e.stderr: logging.error(f"Stderr: {e.stderr.strip()}")
-            return "Internal Server Error during processing", 500 # Pub/Sub might retry
+            logging.error(f"Subprocess error ('{e.cmd}'): {e.stderr.strip() if e.stderr else e.stdout.strip()}", exc_info=False) # Log essential error
+            # exc_info=True would add full stack trace which might be too verbose for just subprocess errors.
+            # Log specific details if needed:
+            # logging.error(f"Command: {' '.join(e.cmd)}")
+            # logging.error(f"Return Code: {e.returncode}")
+            return "Internal Server Error during processing step.", 500 # Retry
         except Exception as e:
-            logging.error(f"An unexpected error occurred processing {pcap_filename}: {e}", exc_info=True)
-            return "Internal Server Error", 500 # Pub/Sub might retry
+            logging.error(f"Unexpected error processing {pcap_filename}: {e}", exc_info=True)
+            return "Internal Server Error", 500 # Retry
 
-# --- Main Execution (for local development, Gunicorn handles this in Cloud Run) ---
+# --- Main Execution (for local development) ---
 if __name__ == '__main__':
-    # Imposta le variabili d'ambiente necessarie per il test locale
-    # os.environ["INCOMING_BUCKET"] = "tuo-bucket-input-locale"
-    # os.environ["OUTPUT_BUCKET"] = "tuo-bucket-output-locale"
-    # os.environ["GCP_PROJECT_ID"] = "tuo-progetto-locale" # Se necessario per il client
-
+    # For local testing, ensure INCOMING_BUCKET and OUTPUT_BUCKET env vars are set.
     if not INCOMING_BUCKET_NAME or not OUTPUT_BUCKET_NAME:
-        print("Per l'esecuzione locale, imposta le variabili d'ambiente INCOMING_BUCKET e OUTPUT_BUCKET.")
+        print("Set INCOMING_BUCKET and OUTPUT_BUCKET environment variables for local run.")
     else:
-        app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)), debug=True) # debug=True per lo sviluppo
+        # Cloud Run uses PORT env var. debug=True for local dev.
+        app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)), debug=True)
