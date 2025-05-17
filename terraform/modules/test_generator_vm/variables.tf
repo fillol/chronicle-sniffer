@@ -11,7 +11,7 @@ variable "zone" {
 variable "vm_name" {
   description = "Nome della VM sniffer/test."
   type        = string
-  default     = "sniffer-vm-instance" 
+  default     = "sniffer-vm-instance"
 }
 
 variable "machine_type" {
@@ -50,7 +50,7 @@ variable "ssh_source_ranges" {
 variable "access_scopes" {
   description = "Scope di accesso per il Service Account della VM."
   type        = list(string)
-  default     = ["https://www.googleapis.com/auth/cloud-platform"] 
+  default     = ["https://www.googleapis.com/auth/cloud-platform"]
 }
 
 variable "sniffer_image_uri_val" {

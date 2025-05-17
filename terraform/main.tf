@@ -61,24 +61,23 @@ module "cloudrun_processor" {
 }
 
 module "test_generator_vm" {
-  source            = "./modules/test_generator_vm" // Path al modulo
+  source            = "./modules/test_generator_vm"
   project_id        = var.gcp_project_id
   zone              = var.test_vm_zone
-  vm_name           = "${var.base_name}-sniffer-vm" // Nome istanza VM
+  vm_name           = "${var.base_name}-sniffer-vm"
   ssh_source_ranges = var.ssh_source_ranges
 
-  attached_service_account_email = google_service_account.test_vm_sa.email                         // SA dedicato per la VM
-  startup_script_path            = "${path.module}/modules/test_generator_vm/startup_script_vm.sh" // Path allo script
+  attached_service_account_email = google_service_account.test_vm_sa.email
+  startup_script_path            = "${path.module}/modules/test_generator_vm/startup_script_vm.sh"
 
-  // Variabili per i metadati (devono corrispondere a quelle nel variables.tf del modulo)
   sniffer_image_uri_val       = var.sniffer_image_uri
   sniffer_gcp_project_id_val  = var.gcp_project_id
   sniffer_incoming_bucket_val = module.gcs_buckets.incoming_pcap_bucket_id
   sniffer_pubsub_topic_id_val = module.pubsub_topic.topic_id
-  sniffer_id_val              = var.test_vm_sniffer_id # Usa la variabile definita a livello root
+  sniffer_id_val              = var.test_vm_sniffer_id
 
   depends_on = [
-    google_service_account.sniffer_sa, // Il SA sniffer deve esistere per l'output 'generate_sniffer_key_command'
+    google_service_account.sniffer_sa,
     module.gcs_buckets,
     module.pubsub_topic
   ]
@@ -177,7 +176,6 @@ resource "google_pubsub_subscription" "processor_subscription" {
 }
 
 # --- Cloud Logging Metrics ---
-
 resource "google_logging_metric" "sniffer_heartbeat_metric" {
   project     = var.gcp_project_id
   name        = "sniffer_heartbeat_count"
@@ -263,7 +261,7 @@ resource "google_logging_metric" "udm_events_generated_metric" {
 
 # --- Cloud Monitoring Dashboard ---
 resource "google_monitoring_dashboard" "main_operational_dashboard" {
-  project        = var.gcp_project_id
+  project = var.gcp_project_id
   dashboard_json = templatefile("${path.module}/dashboards/main_operational_dashboard.json", {
     cloud_run_processor_service_name = module.cloudrun_processor.service_name,
     pubsub_processor_subscription_id = google_pubsub_subscription.processor_subscription.name
@@ -287,18 +285,18 @@ resource "google_monitoring_alert_policy" "sniffer_inactive_alert" {
   conditions {
     display_name = "Sniffer seems inactive (no heartbeat)"
     condition_threshold {
-      filter     = "metric.type=\"logging.googleapis.com/user/sniffer_heartbeat_count\" resource.type=(\"gce_instance\" OR \"k8s_container\" OR \"global\")"
-      duration   = "900s" # 15 minuti
-      comparison = "COMPARISON_LT"
+      filter          = "metric.type=\"logging.googleapis.com/user/sniffer_heartbeat_count\" resource.type=(\"gce_instance\" OR \"k8s_container\" OR \"global\")"
+      duration        = "900s" # 15 minuti
+      comparison      = "COMPARISON_LT"
       threshold_value = 1
       trigger {
         count = 1
       }
       aggregations {
-        alignment_period   = "60s"
-        per_series_aligner = "ALIGN_COUNT"
+        alignment_period     = "60s"
+        per_series_aligner   = "ALIGN_COUNT"
         cross_series_reducer = "REDUCE_SUM"
-        group_by_fields    = ["metric.label.sniffer_id"]
+        group_by_fields      = ["metric.label.sniffer_id"]
       }
     }
   }

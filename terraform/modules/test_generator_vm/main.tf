@@ -3,24 +3,24 @@ resource "google_compute_instance" "generator" {
   name         = var.vm_name
   machine_type = var.machine_type
   zone         = var.zone
-  tags         = ["traffic-generator", var.vm_name] 
+  tags         = ["traffic-generator", var.vm_name]
 
   boot_disk {
     initialize_params {
       image = var.vm_image
-      size  = 20 
+      size  = 20
       type  = var.disk_type
     }
   }
 
   network_interface {
     network = "default"
-    access_config {} 
+    access_config {}
   }
 
   service_account {
-    email  = var.attached_service_account_email 
-    scopes = var.access_scopes                  
+    email  = var.attached_service_account_email
+    scopes = var.access_scopes
   }
 
   metadata = {
@@ -45,6 +45,6 @@ resource "google_compute_firewall" "allow_ssh_vm" {
     protocol = "tcp"
     ports    = ["22"]
   }
-  target_tags   = [var.vm_name] 
+  target_tags   = [var.vm_name]
   source_ranges = var.ssh_source_ranges
 }
