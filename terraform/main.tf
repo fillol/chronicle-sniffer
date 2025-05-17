@@ -253,8 +253,21 @@ resource "google_logging_metric" "udm_events_generated_metric" {
 
   metric_descriptor {
     metric_kind = "DELTA"
-    value_type  = "INT64"
+    value_type  = "DISTRIBUTION"
     unit        = "1"
+  }
+  bucket_options {
+    exponential_buckets {
+      num_finite_buckets = 20  # Numero di bucket, ad es. 20
+      growth_factor      = 2   # Ogni bucket è 2 volte più grande del precedente
+      scale              = 1   # Il primo bucket inizia intorno a 1 (o il più piccolo valore significativo)
+    }
+    # In alternativa, per linear_buckets:
+    # linear_buckets {
+    #   num_finite_buckets = 50 # ad es. 50 bucket
+    #   width              = 10 # ogni bucket ha un'ampiezza di 10 eventi
+    #   offset             = 0  # inizia da 0
+    # }
   }
   value_extractor = "REGEXP_EXTRACT(jsonPayload.message, \"Successfully wrote ([0-9]+) UDM events to\")"
 }
