@@ -26,14 +26,6 @@ resource "google_service_account" "test_vm_sa" {
   display_name = "Service Account for Test/Sniffer VM"
 }
 
-# Permetti al SA della VM di Test di leggere da Artifact Registry => inutile se usiamo dockerhub
-# resource "google_project_iam_member" "test_vm_sa_artifact_registry_reader" {
-#   project = var.gcp_project_id
-#   role    = "roles/artifactregistry.reader"
-#   member  = "serviceAccount:${google_service_account.test_vm_sa.email}"
-# }
-
-
 # --- Moduli ---
 module "gcs_buckets" {
   source                    = "./modules/gcs_buckets"
@@ -107,6 +99,21 @@ resource "google_storage_bucket_iam_member" "sniffer_sa_gcs_writer" {
 }
 
 # --- IAM: Cloud Run Processor SA Permissions ---
+
+# Permesso per storage.buckets.get sul bucket INCOMING
+resource "google_storage_bucket_iam_member" "runner_incoming_bucket_metadata_reader" {
+  bucket = module.gcs_buckets.incoming_pcap_bucket_id
+  role   = "roles/storage.legacyBucketReader" # Contiene storage.buckets.get
+  member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
+# Permesso per storage.buckets.get sul bucket OUTPUT
+resource "google_storage_bucket_iam_member" "runner_output_bucket_metadata_reader" {
+  bucket = module.gcs_buckets.processed_udm_bucket_id
+  role   = "roles/storage.legacyBucketReader" # Contiene storage.buckets.get
+  member = "serviceAccount:${google_service_account.cloud_run_sa.email}"
+}
+
 resource "google_storage_bucket_iam_member" "runner_gcs_writer" {
   bucket = module.gcs_buckets.processed_udm_bucket_id
   role   = "roles/storage.objectCreator"
