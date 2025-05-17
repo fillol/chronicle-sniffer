@@ -11,7 +11,7 @@ variable "zone" {
 variable "vm_name" {
   description = "Nome della VM sniffer/test."
   type        = string
-  default     = "sniffer-vm-instance" // Default aggiornato
+  default     = "sniffer-vm-instance" 
 }
 
 variable "machine_type" {
@@ -40,7 +40,6 @@ variable "disk_type" {
 variable "startup_script_path" {
   description = "Percorso (relativo alla root del modulo) al file dello script di avvio per la VM."
   type        = string
-  # Non c'è un default qui, deve essere fornito
 }
 
 variable "ssh_source_ranges" {
@@ -51,10 +50,9 @@ variable "ssh_source_ranges" {
 variable "access_scopes" {
   description = "Scope di accesso per il Service Account della VM."
   type        = list(string)
-  default     = ["https://www.googleapis.com/auth/cloud-platform"] // Scope ampio per gcloud
+  default     = ["https://www.googleapis.com/auth/cloud-platform"] 
 }
 
-// Variabili per i metadati da passare allo script di startup della VM
 variable "sniffer_image_uri_val" {
   description = "URI completo dell'immagine Docker dello sniffer (da Artifact Registry)."
   type        = string
@@ -73,4 +71,10 @@ variable "sniffer_incoming_bucket_val" {
 variable "sniffer_pubsub_topic_id_val" {
   description = "ID completo del topic Pub/Sub per le notifiche."
   type        = string
+}
+
+variable "sniffer_id_val" {
+  description = "ID univoco per lo sniffer in esecuzione sulla VM."
+  type        = string
+  default     = "test-vm-sniffer"
 }

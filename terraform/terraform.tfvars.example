@@ -10,12 +10,14 @@ processor_cloud_run_image = "europe-west8-docker.pkg.dev/gruppo-2/chronicle-snif
 sniffer_image_uri         = "europe-west8-docker.pkg.dev/gruppo-2/chronicle-sniffer/onprem-sniffer:latest" // Assicurati che esista!
 
 test_vm_zone                      = "europe-west8-b"
+test_vm_sniffer_id = "my-custom-gce-sniffer-id"
 allow_unauthenticated_invocations = false // Manteniamo OIDC per Cloud Run
 
 cloud_run_max_concurrency = 10
 cloud_run_cpu             = "1000m"
 cloud_run_memory          = "512Mi"
 
+alert_notification_channel_id = "projects/gruppo-2/notificationChannels/1234567890123456789" # Esempio, sostituisci con il tuo ID reale
 // ssh_source_ranges = ["IL_TUO_IP_PUBBLICO/32"] // CAMBIARE!
 // enable_bucket_versioning  = true
 // cmek_key_name             = ""
