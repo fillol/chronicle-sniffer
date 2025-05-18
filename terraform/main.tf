@@ -258,9 +258,9 @@ resource "google_logging_metric" "udm_events_generated_metric" {
   }
   bucket_options {
     exponential_buckets {
-      num_finite_buckets = 20  # Numero di bucket, ad es. 20
-      growth_factor      = 2   # Ogni bucket è 2 volte più grande del precedente
-      scale              = 1   # Il primo bucket inizia intorno a 1 (o il più piccolo valore significativo)
+      num_finite_buckets = 20 # Numero di bucket, ad es. 20
+      growth_factor      = 2  # Ogni bucket è 2 volte più grande del precedente
+      scale              = 1  # Il primo bucket inizia intorno a 1 (o il più piccolo valore significativo)
     }
     # In alternativa, per linear_buckets:
     # linear_buckets {
