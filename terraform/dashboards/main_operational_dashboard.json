@@ -4,15 +4,16 @@
     "columns": 2,
     "widgets": [
       {
-        "title": "Sniffer Heartbeats (Overall)",
+        "title": "Sniffer Heartbeats (by Sniffer ID & Interface)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com:user_sniffer_heartbeat_count{monitored_resource=\"global\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com:user_sniffer_heartbeat_count{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id, interface)"
               },
               "plotType": "LINE",
-              "targetAxis": "Y1"
+              "targetAxis": "Y1",
+              "legendTemplate": "{{sniffer_id}} ({{interface}})"
             }
           ],
           "timeshiftDuration": "0s",
@@ -23,20 +24,101 @@
         }
       },
       {
-        "title": "PCAP Files Uploaded (Overall)",
+        "title": "Sniffer TShark Status (1=Running, by ID)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com:user_pcap_files_uploaded_count{monitored_resource=\"global\"}[$${__interval}]))"
+                "prometheusQuery": "max_over_time(sum(rate(logging_googleapis_com_user_sniffer_tshark_status_running_count{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id) > 0 [$${__range_vector_interval}:])"
               },
               "plotType": "LINE",
-              "targetAxis": "Y1"
+              "targetAxis": "Y1",
+              "legendTemplate": "{{sniffer_id}}"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Status (1=Running)",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "PCAP Files Uploaded (by Sniffer ID)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(rate(logging_googleapis_com:user_pcap_files_uploaded_count{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "legendTemplate": "{{sniffer_id}}"
             }
           ],
           "timeshiftDuration": "0s",
           "yAxis": {
             "label": "Uploads/min",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Avg PCAP File Size Uploaded (by Sniffer ID)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_sum{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id) / sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_count{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "legendTemplate": "{{sniffer_id}}"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Avg Size (Bytes)",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "PCAP Upload Errors (by Sniffer ID)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(increase(logging_googleapis_com:user_pcap_upload_errors_count{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "legendTemplate": "{{sniffer_id}}"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Error Count (sum over interval)",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Pub/Sub Publish Errors (by Sniffer ID)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(increase(logging_googleapis_com_user_pubsub_publish_errors_count{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "legendTemplate": "{{sniffer_id}}"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Error Count (sum over interval)",
             "scale": "LINEAR"
           }
         }
@@ -66,7 +148,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "max(pubsub_googleapis_com_subscription_num_unacked_messages_by_region{subscription_id=\"${pubsub_processor_subscription_id}\"})"
+                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_unacked_messages_by_region{subscription_id=\"${pubsub_processor_subscription_id}\"}[$${__interval}])"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -79,13 +161,108 @@
           }
         }
       },
+       {
+        "title": "Pub/Sub - DLQ Messages (Sub: ${pubsub_processor_subscription_id}-dlq)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_undelivered_messages{subscription_id=\"${pubsub_processor_subscription_id}-dlq\"}[$${__interval}])"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "DLQ Msg Count",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Processor - PCAP Download Success Rate",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_download_success_count[$${__interval}]))"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Downloads/sec",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Processor - PCAP Download Not Found",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_pcap_download_notfound_count[$${__interval}]))"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Not Found Count",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Processor - TShark Conversion Success Rate",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_tshark_conversion_success_count[$${__interval}]))"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Conversions/sec",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Processor - TShark Conversion Errors",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_tshark_conversion_error_count[$${__interval}]))"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Error Count",
+            "scale": "LINEAR"
+          }
+        }
+      },
       {
         "title": "UDM Events Generated (Overall Rate)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com:user_udm_events_generated_count{monitored_resource=\"global\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_udm_events_generated_count_sum{monitored_resource=\"global\"}[$${__interval}]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -93,18 +270,18 @@
           ],
           "timeshiftDuration": "0s",
           "yAxis": {
-            "label": "Events/sec",
+            "label": "UDM Events/sec",
             "scale": "LINEAR"
           }
         }
       },
       {
-        "title": "PCAP Upload Errors (Overall)",
+        "title": "Processor - UDM Packet Processing Errors Rate",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com:user_pcap_upload_errors_count{monitored_resource=\"global\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_packet_errors_count_sum[$${__interval}]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -112,7 +289,64 @@
           ],
           "timeshiftDuration": "0s",
           "yAxis": {
-            "label": "Error Count (sum over 5m window)",
+            "label": "Errored Packets/sec",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Processor - UDM Upload Success Rate",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_upload_success_count[$${__interval}]))"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Uploads/sec",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Processor - Avg PCAP Processing Latency",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_sum[$${__interval}])) / sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_count[$${__interval}]))"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Avg Latency (s)",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Processor - 95th Percentile PCAP Processing Latency",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "prometheusQuery": "histogram_quantile(0.95, sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_bucket[$${__interval}])) by (le))"
+              },
+              "plotType": "LINE",
+              "targetAxis": "Y1"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "95p Latency (s)",
             "scale": "LINEAR"
           }
         }

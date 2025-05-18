@@ -155,7 +155,7 @@ def convert_single_packet_to_udm(packet_data):
             udm_network["transport_protocol"] = "TCP"
             if tcp.get("tcp.srcport") is not None: udm_principal["port"] = int(tcp.get("tcp.srcport"))
             if tcp.get("tcp.dstport") is not None: udm_target["port"] = int(tcp.get("tcp.dstport"))
-            if tcp.get("tcp.flags") is not None: udm_network["tcp_flags"] = tcp.get("tcp.flags") # Storing raw flags
+            if tcp.get("tcp.flags") is not None: udm_network["tcp_flags"] = tcp.get("tcp.flags")
         elif udp:
             udm_network["transport_protocol"] = "UDP"
             if udp.get("udp.srcport") is not None: udm_principal["port"] = int(udp.get("udp.srcport"))
@@ -333,7 +333,6 @@ def json_to_udm_streaming(json_file_path):
             # 'item' tells ijson to yield each element of that root array.
             json_packet_iterator = ijson.items(f_json, 'item') 
             for packet_data_dict in json_packet_iterator:
-                # The variable `udm_event` was referred to as `udt_event` in some old comments, corrected.
                 udm_event = convert_single_packet_to_udm(packet_data_dict)
                 udm_events_list.append(udm_event)
                 processed_packet_count += 1
@@ -341,9 +340,12 @@ def json_to_udm_streaming(json_file_path):
                 if "PacketProcessingError" in udm_event.get("event", {}).get("metadata", {}).get("product_name", ""):
                     error_event_count += 1
         
-        logging.info(f"Successfully converted {processed_packet_count} packets from JSON to UDM format.")
+        logging.info(f"Successfully converted {processed_packet_count} packets from JSON to UDM format for file {os.path.basename(json_file_path)}.")
+        logging.info(f"UDM_PACKETS_PROCESSED: {processed_packet_count} FILE: {os.path.basename(json_file_path)}")
+
         if error_event_count > 0:
-            logging.warning(f"{error_event_count} packets encountered processing errors and were converted to minimal error UDM events.")
+            logging.warning(f"{error_event_count} packets encountered processing errors and were converted to minimal error UDM events for file {os.path.basename(json_file_path)}.")
+            logging.warning(f"UDM_PACKET_ERRORS: {error_event_count} FILE: {os.path.basename(json_file_path)}")
             
     except ijson.JSONError as e_ijson:
         # This catches errors during the streaming parse itself (e.g., malformed JSON structure)
@@ -371,7 +373,6 @@ if __name__ == "__main__":
         logging.error(f"Error: Input JSON file '{input_file_path}' not found.")
         sys.exit(1)
     
-    # Log file size for context, helpful for understanding performance/memory with large files.
     try:
         file_size_mb = os.path.getsize(input_file_path) / (1024 * 1024)
         logging.info(f"Starting UDM conversion for JSON file: {input_file_path} (Size: {file_size_mb:.2f} MB)")
@@ -383,7 +384,6 @@ if __name__ == "__main__":
 
     # Outputting to a single file. The previous script had `write_to_multiple_files` which isn't needed here, 
     # as the next step in a GCP environment would likely be to upload this single file to GCS or send its contents via API to Chronicle.
-    # If this list becomes too large for memory before writing, the streaming output would need to be to the file directly.
     try:
         # Ensure output directory exists, especially if output_file_path includes subdirectories
         output_directory = os.path.dirname(output_file_path)

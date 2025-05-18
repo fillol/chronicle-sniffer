@@ -8,6 +8,7 @@ import subprocess
 import tempfile
 import logging
 from flask import Flask, request, Response, jsonify
+from datetime import datetime, timezone # Added for latency measurement
 
 from google.cloud import storage
 
@@ -97,9 +98,10 @@ def health_check():
 @app.route('/', methods=['POST'])
 def process_pcap_notification():
     """Handles Pub/Sub notifications for new PCAP files."""
+    processing_start_time = datetime.now(timezone.utc) # For latency measurement
+
     active_storage_client = get_verified_storage_client()
     if not active_storage_client:
-        # Error logged by get_verified_storage_client(). 500 for Pub/Sub retry.
         return "Internal Server Error: GCS client/bucket issue.", 500
 
     envelope = request.get_json(silent=True)
@@ -141,7 +143,7 @@ def process_pcap_notification():
             # 1. Download pcap from GCS
             logging.info(f"Downloading gs://{INCOMING_BUCKET_NAME}/{pcap_filename} to {local_pcap_path}")
             active_storage_client.bucket(INCOMING_BUCKET_NAME).blob(pcap_filename).download_to_filename(local_pcap_path)
-            logging.info("Download complete.")
+            logging.info(f"Download complete for {pcap_filename}.") # Confirmation for success metric
 
             # 2. Convert pcap to JSON (tshark)
             logging.info(f"Converting {local_pcap_path} to JSON...")
@@ -155,30 +157,35 @@ def process_pcap_notification():
             logging.info(f"Converting {local_json_path} to UDM: {local_udm_path}")
             udm_script_command = ["python3", "/app/json2udm_cloud.py", local_json_path, local_udm_path]
             process = subprocess.run(udm_script_command, capture_output=True, text=True, check=True)
-            logging.info(f"UDM conversion script done.")
+            logging.info(f"UDM conversion script done for {pcap_filename}.") # Confirmation
             if process.stdout: logging.info(f"json2udm_cloud.py stdout: {process.stdout.strip()}")
             if process.stderr: logging.warning(f"json2udm_cloud.py stderr: {process.stderr.strip()}")
             
             if not os.path.exists(local_udm_path) or os.path.getsize(local_udm_path) == 0:
-                logging.error(f"UDM file {local_udm_path} missing or empty post-conversion.")
+                logging.error(f"UDM file {local_udm_path} missing or empty post-conversion for {pcap_filename}.")
                 return "Internal Server Error: UDM generation failed.", 500 # Retry
 
             # 4. Upload UDM JSON to GCS
             logging.info(f"Uploading {local_udm_path} to gs://{OUTPUT_BUCKET_NAME}/{udm_output_filename}")
             active_storage_client.bucket(OUTPUT_BUCKET_NAME).blob(udm_output_filename).upload_from_filename(local_udm_path)
-            logging.info("Upload complete.")
+            logging.info(f"Upload complete for {udm_output_filename}.") # Confirmation
+
+            processing_end_time = datetime.now(timezone.utc)
+            processing_duration_seconds = (processing_end_time - processing_start_time).total_seconds()
+            logging.info(f"PROCESSING_DURATION_SECONDS: {processing_duration_seconds:.3f} FILE: {pcap_filename}")
 
             logging.info(f"Successfully processed {pcap_filename}")
             return Response(status=204) # OK, No Content for Pub/Sub ACK
 
         except storage.exceptions.NotFound:
-             logging.error(f"Error: pcap gs://{INCOMING_BUCKET_NAME}/{pcap_filename} not found.", exc_info=True)
+             logging.error(f"Error: pcap gs://{INCOMING_BUCKET_NAME}/{pcap_filename} not found.", exc_info=False)
              return Response(status=204) # ACK Pub/Sub (don't retry for non-existent file)
         except subprocess.CalledProcessError as e:
-            logging.error(f"Subprocess error ('{e.cmd}'): {e.stderr.strip() if e.stderr else e.stdout.strip()}", exc_info=False) # Log essential error
-            # exc_info=True would add full stack trace which might be too verbose for just subprocess errors.
-            # logging.error(f"Command: {' '.join(e.cmd)}")
-            # logging.error(f"Return Code: {e.returncode}")
+            error_message = e.stderr.strip() if e.stderr else e.stdout.strip()
+            if "tshark" in ' '.join(e.cmd):
+                 logging.error(f"Subprocess error (tshark): CMD: {' '.join(e.cmd)} ERR: {error_message}", exc_info=False)
+            else: # Assumed UDM script error
+                 logging.error(f"Subprocess error (json2udm): CMD: {' '.join(e.cmd)} ERR: {error_message}", exc_info=False)
             return "Internal Server Error during processing step.", 500 # Retry
         except Exception as e:
             logging.error(f"Unexpected error processing {pcap_filename}: {e}", exc_info=True)
