@@ -10,7 +10,6 @@ import logging
 from flask import Flask, request, Response, jsonify
 
 from google.cloud import storage
-# from google.cloud import logging as cloud_logging # Not actively used
 
 # --- Configuration ---
 INCOMING_BUCKET_NAME = os.environ.get("INCOMING_BUCKET")
@@ -33,7 +32,6 @@ try:
     logging.info("GCS client created.")
 except Exception as e:
     logging.critical(f"CRITICAL: Failed to create GCS client: {e}", exc_info=True)
-    # get_verified_storage_client() will handle this.
 
 _incoming_bucket_verified = False # Worker-instance flags for bucket verification
 _output_bucket_verified = False
@@ -179,7 +177,6 @@ def process_pcap_notification():
         except subprocess.CalledProcessError as e:
             logging.error(f"Subprocess error ('{e.cmd}'): {e.stderr.strip() if e.stderr else e.stdout.strip()}", exc_info=False) # Log essential error
             # exc_info=True would add full stack trace which might be too verbose for just subprocess errors.
-            # Log specific details if needed:
             # logging.error(f"Command: {' '.join(e.cmd)}")
             # logging.error(f"Return Code: {e.returncode}")
             return "Internal Server Error during processing step.", 500 # Retry

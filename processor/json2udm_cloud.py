@@ -1,18 +1,11 @@
 # processor/json2udm_cloud.py - UDM Conversion Script (my cybersecurity proposal part)
-# Original script adapted for memory-efficient streaming processing in Cloud Run.
-# Key changes from the previous local version:
-# - Switched from `json.loads()` to `ijson` for streaming JSON parsing to handle large TShark output files
-#   without loading everything into memory. This is critical for Cloud Run's environment.
-# - Processes packets one by one, significantly reducing peak memory usage.
+# Original script adapted for memory-efficient streaming processing in Cloud Run:
+# - Switched from `json.loads()` to `ijson` for streaming JSON parsing to handle large TShark output files without loading everything into memory.
+# - Processes packets one by one, reducing peak memory usage.
 # - Ensures every input packet results in a UDM event, even if it's a minimal error event.
-#   The old script might skip packets with missing keys.
-# - Implemented a more robust timestamp conversion (`convert_timestamp_robust`) with fallbacks,
-#   as reliable timestamps are crucial for UDM.
+# - Implemented a more robust timestamp conversion (`convert_timestamp_robust`) with fallbacks.
 # - The UDM structure is now more aligned with Chronicle's expectations (metadata, principal, target, network sections clearly defined).
-# - Corrected previous typos like udt_payload -> udm_payload.
-# - Removed the `write_to_multiple_files` function. In a cloud environment, the plan is to
-#   stream/send these UDM events directly to Chronicle's API or stage them in GCS,
-#   making multi-file local output less relevant.
+# - Removed the `write_to_multiple_files` function. In a cloud environment, the plan is to stream/send these UDM events directly to Chronicle's API or stage them in GCS.
 
 import json
 import sys
@@ -86,8 +79,7 @@ def extract_values_from_tshark_section(section_data, field_key):
     """
     values = []
     if isinstance(section_data, dict):
-        # TShark's DNS query/answer sections are dictionaries of items,
-        # where each item is another dictionary containing the actual fields.
+        # TShark's DNS query/answer sections are dictionaries of items where each item is another dictionary containing the actual fields.
         for item_details in section_data.values(): # Iterate through the inner dictionaries
             if isinstance(item_details, dict):
                 value = item_details.get(field_key)
@@ -109,8 +101,7 @@ def convert_single_packet_to_udm(packet_data):
         packet_num_info = get_nested_value(packet_data, "_source.layers.frame.frame.number", "N/A")
 
         if not layers:
-            # If the essential 'layers' key is missing, it's a severely malformed packet.
-            # Create a minimal UDM event indicating this issue.
+            # If the essential 'layers' key is missing, it's a severely malformed packet: create a minimal UDM event indicating this issue.
             logging.warning(f"Packet (num: {packet_num_info}) missing '_source.layers'. Creating minimal UDM.")
             ts_fallback = datetime.now(timezone.utc).isoformat(timespec='microseconds').replace('+00:00', 'Z')
             return {"event": {"metadata": {"event_timestamp": ts_fallback,
@@ -190,23 +181,21 @@ def convert_single_packet_to_udm(packet_data):
             http_info = {}
             if http.get("http.host"): 
                 http_info["host"] = http.get("http.host")
-                udm_about.append({"hostname": http.get("http.host")}) # Add host to 'about'
+                udm_about.append({"hostname": http.get("http.host")})
             if http.get("http.file_data"): http_info["file_data"] = http.get("http.file_data") # Potentially large, use with care
             if http.get("http.request.method"): http_info["method"] = http.get("http.request.method")
             if http.get("http.request.full_uri"): 
                 http_info["url"] = http.get("http.request.full_uri")
-                udm_about.append({"url": http_info["url"]}) # Add full URL to 'about'
+                udm_about.append({"url": http_info["url"]})
             if http.get("http.user_agent"): http_info["user_agent"] = http.get("http.user_agent")
             if http.get("http.response.code"): http_info["status_code"] = int(http.get("http.response.code"))
             if http_info: app_layer_data["http"] = http_info
         
-        # DNS processing, using the new helper `extract_values_from_tshark_section`
-        # TShark's DNS JSON can be a bit nested.
+        # DNS processing, using the new helper `extract_values_from_tshark_section`, TShark's DNS JSON can be a bit nested.
         dns_source_layer = dns # Could also be layers.get("mdns") if we were handling that separately.
         if dns_source_layer:
             event_type = "NETWORK_DNS"
             dns_info = {}
-            # Queries section: TShark nests these under "Queries" -> "0" -> field, "1" -> field etc.
             queries_section = dns_source_layer.get("Queries")
             if queries_section:
                 q_names = extract_values_from_tshark_section(queries_section, "dns.qry.name")
@@ -217,12 +206,11 @@ def convert_single_packet_to_udm(packet_data):
                         query_item = {"name": name}
                         if q_types and i < len(q_types): query_item["type"] = q_types[i]
                         dns_info["queries"].append(query_item)
-                        udm_about.append({"hostname": name}) # Queried hostname is an important artifact
+                        udm_about.append({"hostname": name})
 
             # Answers section, similar structure
             answers_section = dns_source_layer.get("Answers")
             if answers_section:
-                # Example: extracting TTLs. Could add IP addresses, CNAMEs etc.
                 ans_ttls = extract_values_from_tshark_section(answers_section, "dns.resp.ttl")
                 if ans_ttls: dns_info["answer_ttls"] = [int(t) for t in ans_ttls if t is not None]
                 # For a full DNS UDM, would extract dns.a, dns.aaaa, dns.cname etc. here.
@@ -235,11 +223,10 @@ def convert_single_packet_to_udm(packet_data):
             if dns_info: app_layer_data["dns"] = dns_info
 
         # TLS/SSL Information
-        if tls_layer: # Remember, tls_layer = layers.get("tls", {})
+        if tls_layer:
             event_type = "NETWORK_SSL" # UDM type for SSL/TLS events
             tls_info = {}
             # TShark can output tls.record as a single dict or a list of dicts (for multiple records in one TCP segment)
-            # Here, we're simplifying by looking at the first record if it's a list.
             tls_record_data = tls_layer.get("tls.record") 
             
             record_to_analyze = None
@@ -266,11 +253,10 @@ def convert_single_packet_to_udm(packet_data):
             if tls_info: app_layer_data["tls"] = tls_info
 
         # --- Constructing the UDM Event ---
-        # This is the `udm_payload` that was mentioned as a correction from `udt_payload`
         udm_payload = {
             "metadata": {
                 "event_timestamp": event_timestamp,
-                "product_name": "Wireshark TShark", # Consistent product name
+                "product_name": "Wireshark TShark",
                 "vendor_name": "Wireshark",
                 "event_type": event_type, # Dynamically set based on protocols found
                 "description": f"Packet capture. Protocols: {frame.get('frame.protocols', 'N/A')}. Frame No: {packet_num_info}"
@@ -395,11 +381,9 @@ if __name__ == "__main__":
     # Core conversion logic using the streaming approach
     udm_event_list_result = json_to_udm_streaming(input_file_path)
 
-    # Outputting to a single file. The previous script had `write_to_multiple_files`
-    # which isn't needed here, as the next step in a GCP environment would likely be
-    # to upload this single file to GCS or send its contents via API to Chronicle.
-    # If this list becomes too large for memory before writing, the streaming output
-    # would need to be to the file directly.
+    # Outputting to a single file. The previous script had `write_to_multiple_files` which isn't needed here, 
+    # as the next step in a GCP environment would likely be to upload this single file to GCS or send its contents via API to Chronicle.
+    # If this list becomes too large for memory before writing, the streaming output would need to be to the file directly.
     try:
         # Ensure output directory exists, especially if output_file_path includes subdirectories
         output_directory = os.path.dirname(output_file_path)
