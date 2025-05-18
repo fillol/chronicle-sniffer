@@ -288,7 +288,7 @@
           "yAxis": { "label": "Error Count / min", "scale": "LINEAR" }
         }
       },
-      {
+            {
         "title": "Processor - UDM Packets Processed Rate",
         "xyChart": {
           "dataSets": [
@@ -297,8 +297,9 @@
                 "timeSeriesFilter": {
                   "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_packets_processed_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
                   "aggregation": {
-                    "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE",
-                    "crossSeriesReducer": "REDUCE_SUM",
+                    "alignmentPeriod": "60s",
+                    "perSeriesAligner": "ALIGN_RATE",
+                    "crossSeriesReducer": "REDUCE_NONE",
                     "groupByFields": ["metric.label.filename"]
                   }
                 }
@@ -319,8 +320,9 @@
                 "timeSeriesFilter": {
                   "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_packet_errors_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
                   "aggregation": {
-                    "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE",
-                    "crossSeriesReducer": "REDUCE_SUM",
+                    "alignmentPeriod": "60s",
+                    "perSeriesAligner": "ALIGN_RATE",
+                    "crossSeriesReducer": "REDUCE_NONE",
                     "groupByFields": ["metric.label.filename"]
                   }
                 }
