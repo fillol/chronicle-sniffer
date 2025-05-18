@@ -48,7 +48,7 @@
         "title": "Total PCAP Volume Uploaded (Last Hour)",
         "scorecard": {
           "timeSeriesQuery": {
-            "timeSeriesQueryLanguage": "fetch global\n| metric 'logging.googleapis.com/user/pcap_file_size_bytes'\n| align delta(1h)\n| group_by [], [value_sum_increase: sum(value.sum)]"
+            "timeSeriesQueryLanguage": "fetch global\n| metric 'logging.googleapis.com/user/pcap_file_size_bytes'\n| align delta(1h)\n| group_by [], [value_sum_increase: sum(value.distribution_value.sum)]"
           },
           "sparkChartView": { "sparkChartType": "SPARK_LINE" }
         }
@@ -104,7 +104,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                 "timeSeriesQueryLanguage": "fetch global\n| metric 'logging.googleapis.com/user/pcap_file_size_bytes'\n| group_by [metric.label.sniffer_id], [value_count: count(value.count), value_sum: sum(value.sum)]\n| every 60s\n| condition val().value_count > 0\n| value [value: val().value_sum / val().value_count]"
+                 "timeSeriesQueryLanguage": "fetch global\n| metric 'logging.googleapis.com/user/pcap_file_size_bytes'\n| group_by [metric.label.sniffer_id], [value_count: count(value.distribution_value.count), value_sum: sum(value.distribution_value.sum)]\n| every 60s\n| condition val().value_count > 0\n| value [value: val().value_sum / val().value_count]"
               },
               "plotType": "LINE", "targetAxis": "Y1",
               "legendTemplate": "{{metric.label.sniffer_id}}"
@@ -288,23 +288,15 @@
           "yAxis": { "label": "Error Count / min", "scale": "LINEAR" }
         }
       },
-            {
+      {
         "title": "Processor - UDM Packets Processed Rate",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesFilter": {
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_packets_processed_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
-                  "aggregation": {
-                    "alignmentPeriod": "60s",
-                    "perSeriesAligner": "ALIGN_RATE",
-                    "crossSeriesReducer": "REDUCE_NONE",
-                    "groupByFields": ["metric.label.filename"]
-                  }
-                }
+                "timeSeriesQueryLanguage": "fetch cloud_run_revision\n| metric 'logging.googleapis.com/user/processor_udm_packets_processed_count'\n| filter (resource.service_name == '${cloud_run_processor_service_name}')\n| group_by [metric.label.filename], 60s, [value_sum_rate: rate(sum(value.distribution_value.sum))]\n| every 60s"
               },
-              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "plotType": "LINE", "targetAxis": "Y1",
               "legendTemplate": "{{metric.label.filename}}"
             }
           ],
@@ -317,17 +309,9 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesFilter": {
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_packet_errors_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
-                  "aggregation": {
-                    "alignmentPeriod": "60s",
-                    "perSeriesAligner": "ALIGN_RATE",
-                    "crossSeriesReducer": "REDUCE_NONE",
-                    "groupByFields": ["metric.label.filename"]
-                  }
-                }
+                "timeSeriesQueryLanguage": "fetch cloud_run_revision\n| metric 'logging.googleapis.com/user/processor_udm_packet_errors_count'\n| filter (resource.service_name == '${cloud_run_processor_service_name}')\n| group_by [metric.label.filename], 60s, [value_sum_rate: rate(sum(value.distribution_value.sum))]\n| every 60s"
               },
-              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "plotType": "LINE", "targetAxis": "Y1",
               "legendTemplate": "{{metric.label.filename}}"
             }
           ],
