@@ -5,39 +5,29 @@
     "widgets": [
       {
         "text": {
-          "content": "# Panoramica Sniffer On-Premises/Edge\n---",
+          "content": "# Sniffer & Edge Overview\n---",
           "format": "MARKDOWN"
-        }
-      },
-      {
-        "title": "Sniffer Heartbeats (by Sniffer ID & Interface)",
-        "xyChart": {
-          "dataSets": [
-            {
-              "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_sniffer_heartbeat_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id, interface)"
-              },
-              "plotType": "LINE",
-              "targetAxis": "Y1",
-              "legendTemplate": "{{sniffer_id}} ({{interface}})"
-            }
-          ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Heartbeats/min",
-            "scale": "LINEAR"
-          }
         }
       },
       {
         "title": "Active Sniffers (Last Hour)",
         "scorecard": {
           "timeSeriesQuery": {
-            "prometheusQuery": "count(count_over_time(logging_googleapis_com_user_sniffer_heartbeat_count_total{monitored_resource=\"global\"}[1h] > 0) by (sniffer_id))"
+            "timeSeriesFilter": {
+              "filter": "metric.type=\"logging.googleapis.com/user/sniffer_heartbeat_count\" resource.type=\"global\"",
+              "aggregation": {
+                "alignmentPeriod": "3600s",
+                "perSeriesAligner": "ALIGN_SUM",
+                "crossSeriesReducer": "REDUCE_COUNT_TRUE",
+                "groupByFields": ["metric.label.sniffer_id"]
+              },
+              "secondaryAggregation": {
+                 "crossSeriesReducer": "REDUCE_SUM",
+                 "groupByFields": []
+              }
+            }
           },
-          "sparkChartView": {
-            "sparkChartType": "SPARK_LINE"
-          },
+          "sparkChartView": { "sparkChartType": "SPARK_LINE" },
           "thresholds": [
             {
               "label": "Warning",
@@ -58,11 +48,32 @@
         "title": "Total PCAP Volume Uploaded (Last Hour)",
         "scorecard": {
           "timeSeriesQuery": {
-            "prometheusQuery": "sum(increase(logging_googleapis_com_user_pcap_file_size_bytes_sum{monitored_resource=\"global\"}[1h]))"
+            "timeSeriesQueryLanguage": "fetch global\n| metric 'logging.googleapis.com/user/pcap_file_size_bytes'\n| align delta(1h)\n| group_by [], [value_sum_increase: sum(value.sum)]"
           },
-          "sparkChartView": {
-            "sparkChartType": "SPARK_LINE"
-          }
+          "sparkChartView": { "sparkChartType": "SPARK_LINE" }
+        }
+      },
+      {
+        "title": "Sniffer Heartbeats (by Sniffer ID & Interface)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/sniffer_heartbeat_count\" resource.type=\"global\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "perSeriesAligner": "ALIGN_RATE",
+                    "crossSeriesReducer": "REDUCE_NONE",
+                    "groupByFields": ["metric.label.sniffer_id", "metric.label.interface"]
+                  }
+                }
+              },
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "legendTemplate": "{{metric.label.sniffer_id}} ({{metric.label.interface}})"
+            }
+          ],
+          "yAxis": { "label": "Heartbeats/sec", "scale": "LINEAR" }
         }
       },
       {
@@ -71,18 +82,20 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_pcap_files_uploaded_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/pcap_files_uploaded_count\" resource.type=\"global\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE",
+                    "crossSeriesReducer": "REDUCE_NONE",
+                    "groupByFields": ["metric.label.sniffer_id"]
+                  }
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1",
-              "legendTemplate": "{{sniffer_id}}"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "legendTemplate": "{{metric.label.sniffer_id}}"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Uploads/min",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Uploads/sec", "scale": "LINEAR" }
         }
       },
       {
@@ -91,18 +104,13 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_sum{monitored_resource=\"global\"}[5m])) by (sniffer_id) / sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_count{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
+                 "timeSeriesQueryLanguage": "fetch global\n| metric 'logging.googleapis.com/user/pcap_file_size_bytes'\n| group_by [metric.label.sniffer_id], [value_count: count(value.count), value_sum: sum(value.sum)]\n| every 60s\n| condition val().value_count > 0\n| value [value: val().value_sum / val().value_count]"
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1",
-              "legendTemplate": "{{sniffer_id}}"
+              "plotType": "LINE", "targetAxis": "Y1",
+              "legendTemplate": "{{metric.label.sniffer_id}}"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Avg Size (Bytes)",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Avg Size (Bytes)", "scale": "LINEAR" }
         }
       },
       {
@@ -111,18 +119,20 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_pcap_upload_errors_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/pcap_upload_errors_count\" resource.type=\"global\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA",
+                    "crossSeriesReducer": "REDUCE_NONE",
+                    "groupByFields": ["metric.label.sniffer_id"]
+                  }
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1",
-              "legendTemplate": "{{sniffer_id}}"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "legendTemplate": "{{metric.label.sniffer_id}}"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Error Count (sum over interval)",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Error Count / min", "scale": "LINEAR" }
         }
       },
       {
@@ -131,23 +141,25 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_pubsub_publish_errors_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/pubsub_publish_errors_count\" resource.type=\"global\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA",
+                    "crossSeriesReducer": "REDUCE_NONE",
+                    "groupByFields": ["metric.label.sniffer_id"]
+                  }
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1",
-              "legendTemplate": "{{sniffer_id}}"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "legendTemplate": "{{metric.label.sniffer_id}}"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Error Count (sum over interval)",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Error Count / min", "scale": "LINEAR" }
         }
       },
       {
         "text": {
-          "content": "# Panoramica Pipeline di Elaborazione Cloud\n---",
+          "content": "# Cloud Processing Pipeline Overview\n---",
           "format": "MARKDOWN"
         }
       },
@@ -157,17 +169,15 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(run_googleapis_com_request_count{service_name=\"${cloud_run_processor_service_name}\", response_code_class=\"2xx\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"run.googleapis.com/request_count\" resource.labels.service_name=\"${cloud_run_processor_service_name}\" metric.labels.response_code_class=\"2xx\"",
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM"}
+                }
               },
-              "plotType": "STACKED_BAR",
-              "targetAxis": "Y1"
+              "plotType": "STACKED_BAR", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Requests/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Requests/sec", "scale": "LINEAR" }
         }
       },
       {
@@ -176,41 +186,37 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_unacked_messages_by_region{subscription_id=\"${pubsub_processor_subscription_id}\"}[5m])"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/num_unacked_messages_by_region\" resource.labels.subscription_id=\"${pubsub_processor_subscription_id}\"",
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_MAX", "crossSeriesReducer": "REDUCE_MAX"}
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Count",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Count", "scale": "LINEAR" }
         }
       },
-      {
+       {
         "title": "Pub/Sub - DLQ Messages (Sub: ${pubsub_processor_subscription_id}-dlq)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_undelivered_messages{subscription_id=\"${pubsub_processor_subscription_id}-dlq\"}[5m])"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" resource.labels.subscription_id=\"${pubsub_processor_subscription_id}-dlq\"",
+                   "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_MAX", "crossSeriesReducer": "REDUCE_MAX"}
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "DLQ Msg Count",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "DLQ Msg Count", "scale": "LINEAR" }
         }
       },
       {
         "text": {
-          "content": "# Dettaglio Prestazioni Processor Cloud Run\n---",
+          "content": "# Cloud Processor Performance Details\n---",
           "format": "MARKDOWN"
         }
       },
@@ -220,17 +226,15 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_download_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM"}
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Downloads/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Downloads/sec", "scale": "LINEAR" }
         }
       },
       {
@@ -239,36 +243,32 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_pcap_download_notfound_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_notfound_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA", "crossSeriesReducer": "REDUCE_SUM"}
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Not Found Count",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Not Found Count / min", "scale": "LINEAR" }
         }
       },
       {
         "title": "Processor - TShark Conversion Success Rate",
         "xyChart": {
-          "dataSets": [
+           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_tshark_conversion_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM"}
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Conversions/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Conversions/sec", "scale": "LINEAR" }
         }
       },
       {
@@ -277,17 +277,15 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_tshark_conversion_error_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_error_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_DELTA", "crossSeriesReducer": "REDUCE_SUM"}
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Error Count",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Error Count / min", "scale": "LINEAR" }
         }
       },
       {
@@ -296,17 +294,20 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_packets_processed_count_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_packets_processed_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE",
+                    "crossSeriesReducer": "REDUCE_SUM",
+                    "groupByFields": ["metric.label.filename"]
+                  }
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "legendTemplate": "{{metric.label.filename}}"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "UDM Packets/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "UDM Packets/sec", "scale": "LINEAR" }
         }
       },
       {
@@ -315,17 +316,20 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_packet_errors_count_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_packet_errors_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE",
+                    "crossSeriesReducer": "REDUCE_SUM",
+                    "groupByFields": ["metric.label.filename"]
+                  }
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s",
+              "legendTemplate": "{{metric.label.filename}}"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Errored Packets/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Errored Packets/sec", "scale": "LINEAR" }
         }
       },
       {
@@ -334,22 +338,20 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_upload_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_upload_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_RATE", "crossSeriesReducer": "REDUCE_SUM"}
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Uploads/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Uploads/sec", "scale": "LINEAR" }
         }
       },
       {
         "text": {
-          "content": "# Latenza di Elaborazione End-to-End\n---",
+          "content": "# End-to-End Processing Latency\n---",
           "format": "MARKDOWN"
         }
       },
@@ -359,17 +361,12 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m])) / sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_count{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
+                 "timeSeriesQueryLanguage": "fetch cloud_run_revision\n| metric 'logging.googleapis.com/user/processor_pcap_processing_latency_seconds'\n| filter (resource.service_name == '${cloud_run_processor_service_name}')\n| group_by [], [value_mean: mean(value.distribution_value.mean)]\n| every 60s"
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Avg Latency (s)",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Avg Latency (s)", "scale": "LINEAR" }
         }
       },
       {
@@ -378,17 +375,19 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "histogram_quantile(0.95, sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_bucket{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m])) by (le))"
+                "timeSeriesFilter": {
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_processing_latency_seconds\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\"",
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "perSeriesAligner": "ALIGN_PERCENTILE_95",
+                    "crossSeriesReducer": "REDUCE_NONE"
+                  }
+                }
               },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+              "plotType": "LINE", "targetAxis": "Y1", "minAlignmentPeriod": "60s"
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "95p Latency (s)",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "95p Latency (s)", "scale": "LINEAR" }
         }
       }
     ]
