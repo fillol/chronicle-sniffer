@@ -2,31 +2,32 @@
 # sniffer/sniffer_entrypoint.sh - Captures network traffic, uploads to GCS, and notifies Pub/Sub.
 # This script runs inside a Docker container, typically on premises.
 
-echo "--- Sniffer Container Starting ---"
-
 # --- Configuration (from Environment Variables) ---
 GCP_PROJECT_ID="${GCP_PROJECT_ID}"                # GCP Project ID
 INCOMING_BUCKET="${INCOMING_BUCKET}"            # GCS bucket for raw .pcap uploads
 PUBSUB_TOPIC_ID="${PUBSUB_TOPIC_ID}"            # Pub/Sub topic for notifications
 GCP_KEY_FILE="${GCP_KEY_FILE:-/app/gcp-key/key.json}" # Path to Service Account key within the container
+SNIFFER_ID="${SNIFFER_ID:-unknown-sniffer}"     # Unique ID for this sniffer instance
 
 # tshark options - configurable via environment variables
 INTERFACE=""                                      # Network interface for capture (auto-detected if empty)
+INTERFACE_NAME_ONLY="unknown-interface"           # To store just the name of the interface
 ROTATE="${ROTATE:-"-b filesize:10240 -b duration:60"}" # tshark rotation params (e.g., 10MB or 60s)
 LIMITS="${LIMITS:-}"                              # Other tshark limits (e.g., -c packet_count)
 CAPTURE_DIR="/app/captures"                       # Local directory for storing .pcap files
 FILENAME_BASE="capture"                           # Base for .pcap filenames (e.g., capture_00001_timestamp.pcap)
 
 # --- Validate Configuration & Setup ---
+echo "--- Sniffer Container Starting (ID: $SNIFFER_ID) ---"
 # Ensure critical environment variables are set.
-if [ -z "$GCP_PROJECT_ID" ] || [ -z "$INCOMING_BUCKET" ] || [ -z "$PUBSUB_TOPIC_ID" ]; then
-    echo "Error: GCP_PROJECT_ID, INCOMING_BUCKET, and PUBSUB_TOPIC_ID must be set."
+if [ -z "$GCP_PROJECT_ID" ] || [ -z "$INCOMING_BUCKET" ] || [ -z "$PUBSUB_TOPIC_ID" ] || [ "$SNIFFER_ID" == "unknown-sniffer" ]; then
+    echo "Error (ID: $SNIFFER_ID): GCP_PROJECT_ID, INCOMING_BUCKET, PUBSUB_TOPIC_ID, and SNIFFER_ID must be set."
     exit 1
 fi
 # Check for Service Account key file.
 if [ ! -f "$GCP_KEY_FILE" ]; then
-    echo "Error: Service Account key file not found at $GCP_KEY_FILE."
-    echo "Ensure the key is correctly mounted to this path in the container."
+    echo "Error (ID: $SNIFFER_ID): Service Account key file not found at $GCP_KEY_FILE."
+    echo "(ID: $SNIFFER_ID) Ensure the key is correctly mounted to this path in the container."
     exit 1
 fi
 # Verify required tools are installed.
@@ -34,15 +35,15 @@ if ! command -v tshark &> /dev/null; then echo "Error: tshark not found."; exit 
 if ! command -v gcloud &> /dev/null; then echo "Error: gcloud not found."; exit 1; fi
 
 # Activate Service Account using the provided key file for gcloud operations.
-echo "Activating Service Account using key $GCP_KEY_FILE..."
+echo "(ID: $SNIFFER_ID) Activating Service Account using key $GCP_KEY_FILE..."
 gcloud auth activate-service-account --key-file="$GCP_KEY_FILE" --project="$GCP_PROJECT_ID"
-if [ $? -ne 0 ]; then echo "Error: Failed to activate service account."; exit 1; fi
-echo "Service Account activated."
+if [ $? -ne 0 ]; then echo "Error (ID: $SNIFFER_ID): Failed to activate service account."; exit 1; fi
+echo "(ID: $SNIFFER_ID) Service Account activated."
 gcloud auth list # Display active gcloud account for verification.
 
 # Auto-detect active network interface if not explicitly set.
 # This loop tries to find a suitable non-loopback, non-docker, etc., interface that is 'up'.
-echo "Searching for active network interface..."
+echo "(ID: $SNIFFER_ID) Searching for active network interface..."
 while true; do
     for iface_path in /sys/class/net/*; do
         iface=$(basename "$iface_path")
@@ -50,23 +51,37 @@ while true; do
         case "$iface" in lo|docker*|br-*|tun*|veth*|wg*) continue ;; esac
         # Check if the interface operational state is "up".
         if [[ -f "$iface_path/operstate" && $(< "$iface_path/operstate") == "up" ]]; then
+            INTERFACE_NAME_ONLY=$iface
             INTERFACE="-i $iface" # Set tshark interface option.
-            echo "Active network interface found: $iface"
+            echo "(ID: $SNIFFER_ID) Active network interface found: $INTERFACE_NAME_ONLY"
             break 2 # Break out of both loops.
         fi
     done
-    echo "No active interface found. Retrying in 5 seconds..."
+    echo "(ID: $SNIFFER_ID) No active interface found. Retrying in 5 seconds..."
     sleep 5
 done
 
 
 # --- Capture and Process Loop ---
-echo "Starting tshark capture..."
-echo "  Interface: $INTERFACE"
-echo "  Rotation: $ROTATE"
-echo "  Output Dir: $CAPTURE_DIR"
-echo "  GCS Bucket: gs://${INCOMING_BUCKET}"
-echo "  Pub/Sub Topic: ${PUBSUB_TOPIC_ID}"
+echo "(ID: $SNIFFER_ID) Starting tshark capture..."
+echo "(ID: $SNIFFER_ID)   Interface: $INTERFACE_NAME_ONLY ($INTERFACE)"
+echo "(ID: $SNIFFER_ID)   Rotation: $ROTATE"
+echo "(ID: $SNIFFER_ID)   Output Dir: $CAPTURE_DIR"
+echo "(ID: $SNIFFER_ID)   GCS Bucket: gs://${INCOMING_BUCKET}"
+echo "(ID: $SNIFFER_ID)   Pub/Sub Topic: ${PUBSUB_TOPIC_ID}"
+
+# Function for sniffer heartbeat, runs in background
+send_heartbeat() {
+    while true; do
+        # Log current tshark status along with heartbeat
+        local tshark_status="stopped"
+        if kill -0 $TSHARK_PID 2>/dev/null; then
+            tshark_status="running"
+        fi
+        echo "[$(date)] (ID: $SNIFFER_ID) (IFACE: $INTERFACE_NAME_ONLY) Heartbeat. tshark PID: $TSHARK_PID (Status: $tshark_status)"
+        sleep 60 # Send heartbeat every 60 seconds
+    done
+}
 
 # Start tshark in the background to capture packets.
 # It will rotate files based on $ROTATE parameters.
@@ -74,6 +89,10 @@ tshark $INTERFACE $ROTATE $LIMITS -w "$CAPTURE_DIR/$FILENAME_BASE.pcap" &
 TSHARK_PID=$! # Store tshark's Process ID.
 echo "tshark started with PID $TSHARK_PID"
 sleep 5 # Give tshark a moment to start and create its first file.
+
+# Start heartbeat in background
+send_heartbeat &
+HEARTBEAT_PID=$!
 
 processed_files=() # Array to keep track of files already uploaded/notified.
 
@@ -101,36 +120,37 @@ while kill -0 $TSHARK_PID 2>/dev/null; do
         # Skip if this file has already been processed.
         if is_processed "$base_pcap_file" "${processed_files[@]}"; then continue; fi
 
-        echo "[$(date)] Detected completed file: $base_pcap_file"
+        echo "[$(date)] (ID: $SNIFFER_ID) Detected completed file: $base_pcap_file"
 
         # 1. Upload the completed .pcap file to Google Cloud Storage.
-        echo "[$(date)] Uploading $base_pcap_file to gs://${INCOMING_BUCKET}/..."
+        echo "[$(date)] (ID: $SNIFFER_ID) Uploading $base_pcap_file to gs://${INCOMING_BUCKET}/..."
         if gcloud storage cp "$pcap_file" "gs://${INCOMING_BUCKET}/" --project "$GCP_PROJECT_ID"; then
-            echo "[$(date)] Upload successful."
+            echo "[$(date)] (ID: $SNIFFER_ID) Upload successful for $base_pcap_file."
 
             # 2. Publish a notification to Pub/Sub with the filename.
-            echo "[$(date)] Publishing notification for $base_pcap_file to ${PUBSUB_TOPIC_ID}..."
+            echo "[$(date)] (ID: $SNIFFER_ID) Publishing notification for $base_pcap_file to ${PUBSUB_TOPIC_ID}..."
             if gcloud pubsub topics publish "$PUBSUB_TOPIC_ID" --message "$base_pcap_file" --project "$GCP_PROJECT_ID"; then
-                echo "[$(date)] Notification published successfully."
+                echo "[$(date)] (ID: $SNIFFER_ID) Notification published successfully for $base_pcap_file."
                 processed_files+=("$base_pcap_file") # Add to processed list.
                 # 3. Remove the local .pcap file after successful upload and notification.
                 rm "$pcap_file"
-                echo "[$(date)] Removed local file: $pcap_file"
+                echo "[$(date)] (ID: $SNIFFER_ID) Removed local file: $pcap_file"
             else
-                echo "[$(date)] Error: Failed to publish notification for $base_pcap_file."
+                echo "[$(date)] (ID: $SNIFFER_ID) Error: Failed to publish notification for $base_pcap_file."
                 # File is not removed or added to processed_files, will retry on next loop iteration.
             fi
         else
-            echo "[$(date)] Error: Failed to upload $base_pcap_file to GCS."
+            echo "[$(date)] (ID: $SNIFFER_ID) Error: Failed to upload $base_pcap_file to GCS."
             # Upload failed; will retry on next loop iteration.
         fi
     done
     sleep 10 # Wait before checking for new completed files again.
 done
 
-echo "tshark process ended. Exiting sniffer."
+echo "(ID: $SNIFFER_ID) tshark process (PID: $TSHARK_PID) ended. Exiting sniffer."
 # Ensure tshark is terminated if the script exits for any reason.
-trap 'echo "Terminating tshark due to script exit"; kill $TSHARK_PID 2>/dev/null' EXIT
-wait $TSHARK_PID # Wait for tshark to fully exit.
+trap 'echo "(ID: $SNIFFER_ID) Terminating tshark (PID: $TSHARK_PID) and heartbeat (PID: $HEARTBEAT_PID) due to script exit"; kill $TSHARK_PID $HEARTBEAT_PID 2>/dev/null' EXIT
+wait $TSHARK_PID # Wait for tshark to fully exit (if it hasn't already).
+kill $HEARTBEAT_PID 2>/dev/null # Ensure heartbeat process is also terminated
 
-echo "--- Sniffer Container Finished ---"
+echo "--- Sniffer Container (ID: $SNIFFER_ID) Finished ---"

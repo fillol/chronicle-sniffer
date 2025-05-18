@@ -1,0 +1,119 @@
+{
+  "displayName": "Chronicle Sniffer Operational Dashboard",
+  "gridLayout": {
+    "columns": "2",
+    "widgets": [
+      {
+        "title": "Sniffer Heartbeats (by Sniffer ID & Interface)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/sniffer_heartbeat_count\n| filter (resource.type == 'gce_instance' || resource.type == 'k8s_container' || resource.type == 'global')\n| group_by [metric.label.sniffer_id, metric.label.interface],\n    {aggregation_function: rate(sum(value.sniffer_heartbeat_count))}\n| every 1m\n| within 5m"
+              },
+              "plotType": "LINE",
+              "legendTemplate": "$${metric.label.sniffer_id} ($${metric.label.interface})"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Heartbeats/min",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "PCAP Files Uploaded (by Sniffer ID)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_files_uploaded_count\n| filter (resource.type == 'gce_instance' || resource.type == 'k8s_container' || resource.type == 'global')\n| group_by [metric.label.sniffer_id],\n    {aggregation_function: rate(sum(value.pcap_files_uploaded_count))}\n| every 1m\n| within 5m"
+              },
+              "plotType": "LINE",
+              "legendTemplate": "$${metric.label.sniffer_id}"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Uploads/min",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Cloud Run - Processed Requests (Success) - ${cloud_run_processor_service_name}",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesQueryLanguage": "fetch cloud_run_revision\n| metric 'run.googleapis.com/request_count'\n| filter (resource.service_name == '${cloud_run_processor_service_name}' && metric.response_code_class == '2xx')\n| group_by [], {aggregation_function: rate(sum(value.request_count))}\n| every 1m\n| within 5m"
+              },
+              "plotType": "STACKED_BAR"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Requests/sec",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "Pub/Sub - Unacked Msgs (Sub: ${pubsub_processor_subscription_id})",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesQueryLanguage": "fetch pubsub_subscription\n| metric 'pubsub.googleapis.com/subscription/num_unacked_messages_by_region'\n| filter resource.subscription_id == '${pubsub_processor_subscription_id}'\n| group_by [], {aggregation_function: max(value.num_unacked_messages_by_region)}\n| every 1m\n| within 5m"
+              },
+              "plotType": "LINE"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Count",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "UDM Events Generated (Rate)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesQueryLanguage": "fetch cloud_run_revision\n| metric 'logging.googleapis.com/user/udm_events_generated_count'\n| group_by [], {aggregation_function: rate(sum(value.udm_events_generated_count))}\n| every 1m\n| within 5m"
+              },
+              "plotType": "LINE"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Events/sec",
+            "scale": "LINEAR"
+          }
+        }
+      },
+      {
+        "title": "PCAP Upload Errors (by Sniffer ID)",
+        "xyChart": {
+          "dataSets": [
+            {
+              "timeSeriesQuery": {
+                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_upload_errors_count\n| filter (resource.type == 'gce_instance' || resource.type == 'k8s_container' || resource.type == 'global')\n| group_by [metric.label.sniffer_id],\n    {aggregation_function: sum(value.pcap_upload_errors_count)}\n| every 1m\n| within 5m"
+              },
+              "plotType": "LINE",
+              "legendTemplate": "$${metric.label.sniffer_id}"
+            }
+          ],
+          "timeshiftDuration": "0s",
+          "yAxis": {
+            "label": "Error Count (sum over 5m window)",
+            "scale": "LINEAR"
+          }
+        }
+      }
+    ]
+  }
+}

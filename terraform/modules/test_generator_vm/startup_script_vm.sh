@@ -20,17 +20,22 @@ SNIFFER_IMAGE_URI_FROM_METADATA=$(get_metadata_value "VM_SNIFFER_IMAGE_URI")
 VM_GCP_PROJECT_ID_FROM_METADATA=$(get_metadata_value "VM_SNIFFER_GCP_PROJECT_ID")
 VM_INCOMING_BUCKET_FROM_METADATA=$(get_metadata_value "VM_SNIFFER_INCOMING_BUCKET")
 VM_PUBSUB_TOPIC_ID_FROM_METADATA=$(get_metadata_value "VM_SNIFFER_PUBSUB_TOPIC_ID")
+VM_SNIFFER_ID_FROM_METADATA=$(get_metadata_value "VM_SNIFFER_ID")
+
 
 echo "Valori metadati recuperati:"
 echo "  SNIFFER_IMAGE_URI: $SNIFFER_IMAGE_URI_FROM_METADATA"
 echo "  GCP_PROJECT_ID:    $VM_GCP_PROJECT_ID_FROM_METADATA"
 echo "  INCOMING_BUCKET:   $VM_INCOMING_BUCKET_FROM_METADATA"
 echo "  PUBSUB_TOPIC_ID:   $VM_PUBSUB_TOPIC_ID_FROM_METADATA"
+echo "  VM_SNIFFER_ID:     $VM_SNIFFER_ID_FROM_METADATA"
+
 
 if [ -z "$SNIFFER_IMAGE_URI_FROM_METADATA" ] || \
    [ -z "$VM_GCP_PROJECT_ID_FROM_METADATA" ] || \
    [ -z "$VM_INCOMING_BUCKET_FROM_METADATA" ] || \
-   [ -z "$VM_PUBSUB_TOPIC_ID_FROM_METADATA" ]; then
+   [ -z "$VM_PUBSUB_TOPIC_ID_FROM_METADATA" ] || \
+   [ -z "$VM_SNIFFER_ID_FROM_METADATA" ]; then
   echo "ERRORE FATALE: Uno o più metadati richiesti non sono stati recuperati. Uscita."
   exit 1
 fi
@@ -59,9 +64,6 @@ if [[ "$SNIFFER_IMAGE_URI_FROM_METADATA" == *pkg.dev* ]]; then
       echo "Verifica i permessi del Service Account della VM (deve avere 'roles/artifactregistry.reader')."
       echo "SA Attivo sulla VM:"
       gcloud auth list
-      # Non usciamo con exit 1 qui, magari l'utente vuole usare un'immagine pubblica come fallback
-      # o il pull potrebbe funzionare se l'immagine AR è pubblica.
-      # Ma logghiamo l'errore in modo prominente.
   else
       echo "Autenticazione Docker per Artifact Registry configurata."
   fi
@@ -92,9 +94,10 @@ cat << EOF_ENV > "$SNIFFER_ENV_FILE"
 GCP_PROJECT_ID=$VM_GCP_PROJECT_ID_FROM_METADATA
 INCOMING_BUCKET=$VM_INCOMING_BUCKET_FROM_METADATA
 PUBSUB_TOPIC_ID=$VM_PUBSUB_TOPIC_ID_FROM_METADATA
+SNIFFER_ID=${VM_SNIFFER_ID_FROM_METADATA} 
 GCP_KEY_FILE=$SNIFFER_GCP_KEY_CONTAINER_PATH/key.json
 # ROTATE=-b filesize:5120
-# INTERFACE=eth0
+# INTERFACE=eth0 # L'entrypoint dello sniffer dovrebbe auto-rilevarlo
 EOF_ENV
 echo "File .env creato in $SNIFFER_ENV_FILE"
 

@@ -88,3 +88,15 @@ variable "cmek_key_name" {
   type        = string
   default     = ""
 }
+
+variable "alert_notification_channel_id" {
+  description = "ID del canale di notifica di Cloud Monitoring per gli alert (es. projects/PROJECT_ID/notificationChannels/CHANNEL_ID). Creare manualmente nella console e fornire l'ID."
+  type        = string
+  default     = "" # Lasciare vuoto se non si configurano alert o si fa manualmente
+}
+
+variable "test_vm_sniffer_id" {
+  description = "L'ID univoco per lo sniffer che girerà sulla VM di test."
+  type        = string
+  default     = "gce-test-sniffer"
+}
