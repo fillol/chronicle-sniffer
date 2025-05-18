@@ -15,7 +15,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_sniffer_heartbeat_count_total{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id, interface)"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_sniffer_heartbeat_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id, interface)"
               },
               "plotType": "LINE",
               "targetAxis": "Y1",
@@ -30,22 +30,38 @@
         }
       },
       {
-        "title": "Sniffer TShark Status (1=Running, by ID)",
-        "xyChart": {
-          "dataSets": [
+        "title": "Active Sniffers (Last Hour)",
+        "scorecard": {
+          "timeSeriesQuery": {
+            "prometheusQuery": "count(count_over_time(logging_googleapis_com_user_sniffer_heartbeat_count_total{monitored_resource=\"global\"}[1h] > 0) by (sniffer_id))"
+          },
+          "sparkChartView": {
+            "sparkChartType": "SPARK_LINE"
+          },
+          "thresholds": [
             {
-              "timeSeriesQuery": {
-                "prometheusQuery": "max_over_time(sum(rate(logging_googleapis_com_user_sniffer_tshark_status_running_count_total{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id) > 0 [$${__range_vector_interval}:])"
-              },
-              "plotType": "LINE",
-              "targetAxis": "Y1",
-              "legendTemplate": "{{sniffer_id}}"
+              "label": "Warning",
+              "value": 1.0,
+              "color": "YELLOW",
+              "direction": "BELOW"
+            },
+            {
+              "label": "Critical",
+              "value": 0.5,
+              "color": "RED",
+              "direction": "BELOW"
             }
-          ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Status (1=Running)",
-            "scale": "LINEAR"
+          ]
+        }
+      },
+      {
+        "title": "Total PCAP Volume Uploaded (Last Hour)",
+        "scorecard": {
+          "timeSeriesQuery": {
+            "prometheusQuery": "sum(increase(logging_googleapis_com_user_pcap_file_size_bytes_sum{monitored_resource=\"global\"}[1h]))"
+          },
+          "sparkChartView": {
+            "sparkChartType": "SPARK_LINE"
           }
         }
       },
@@ -55,7 +71,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_pcap_files_uploaded_count_total{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_pcap_files_uploaded_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
               },
               "plotType": "LINE",
               "targetAxis": "Y1",
@@ -75,7 +91,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_sum{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id) / sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_count{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_sum{monitored_resource=\"global\"}[5m])) by (sniffer_id) / sum(rate(logging_googleapis_com_user_pcap_file_size_bytes_count{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
               },
               "plotType": "LINE",
               "targetAxis": "Y1",
@@ -95,7 +111,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_pcap_upload_errors_count_total{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+                "prometheusQuery": "sum(increase(logging_googleapis_com_user_pcap_upload_errors_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
               },
               "plotType": "LINE",
               "targetAxis": "Y1",
@@ -115,7 +131,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_pubsub_publish_errors_count_total{monitored_resource=\"global\"}[$${__interval}])) by (sniffer_id)"
+                "prometheusQuery": "sum(increase(logging_googleapis_com_user_pubsub_publish_errors_count_total{monitored_resource=\"global\"}[5m])) by (sniffer_id)"
               },
               "plotType": "LINE",
               "targetAxis": "Y1",
@@ -141,7 +157,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(run_googleapis_com_request_count{service_name=\"${cloud_run_processor_service_name}\", response_code_class=\"2xx\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(run_googleapis_com_request_count{service_name=\"${cloud_run_processor_service_name}\", response_code_class=\"2xx\"}[5m]))"
               },
               "plotType": "STACKED_BAR",
               "targetAxis": "Y1"
@@ -160,7 +176,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_unacked_messages_by_region{subscription_id=\"${pubsub_processor_subscription_id}\"}[$${__interval}])"
+                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_unacked_messages_by_region{subscription_id=\"${pubsub_processor_subscription_id}\"}[5m])"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -173,13 +189,13 @@
           }
         }
       },
-       {
+      {
         "title": "Pub/Sub - DLQ Messages (Sub: ${pubsub_processor_subscription_id}-dlq)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_undelivered_messages{subscription_id=\"${pubsub_processor_subscription_id}-dlq\"}[$${__interval}])"
+                "prometheusQuery": "max_over_time(pubsub_googleapis_com_subscription_num_undelivered_messages{subscription_id=\"${pubsub_processor_subscription_id}-dlq\"}[5m])"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -204,7 +220,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_download_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_download_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -223,7 +239,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_pcap_download_notfound_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_pcap_download_notfound_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -242,7 +258,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_tshark_conversion_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_tshark_conversion_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -261,7 +277,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_tshark_conversion_error_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(increase(logging_googleapis_com_user_processor_tshark_conversion_error_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -280,7 +296,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_packets_processed_count_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_packets_processed_count_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -299,7 +315,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_packet_errors_count_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_packet_errors_count_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -318,7 +334,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_upload_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_udm_upload_success_count_total{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -343,7 +359,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}])) / sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_count{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}]))"
+                "prometheusQuery": "sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_sum{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m])) / sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_count{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m]))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
@@ -362,7 +378,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "prometheusQuery": "histogram_quantile(0.95, sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_bucket{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[$${__interval}])) by (le))"
+                "prometheusQuery": "histogram_quantile(0.95, sum(rate(logging_googleapis_com_user_processor_pcap_processing_latency_seconds_bucket{monitored_resource=\"cloud_run_revision\", service_name=\"${cloud_run_processor_service_name}\"}[5m])) by (le))"
               },
               "plotType": "LINE",
               "targetAxis": "Y1"
