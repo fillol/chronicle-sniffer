@@ -1,18 +1,18 @@
 {
-  "displayName": "Chronicle Sniffer Operational Dashboard",
+  "displayName": "Chronicle-Sniffer Operational Dashboard",
   "gridLayout": {
     "columns": 2,
     "widgets": [
       {
-        "title": "Sniffer Heartbeats (by Sniffer ID & Interface)",
+        "title": "Sniffer Heartbeats (Overall)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/sniffer_heartbeat_count | filter resource.type =~ \"gce_instance|k8s_container|global\" | group_by [metric.label.sniffer_id, metric.label.interface], {aggregation_function: rate(sum(value.sniffer_heartbeat_count))} | every 1m | within 5m"
+                "prometheusQuery": "sum(rate(logging_googleapis_com:user_sniffer_heartbeat_count{monitored_resource=\"global\"}[$${__interval}]))"
               },
               "plotType": "LINE",
-              "legendTemplate": "$${metric.label.sniffer_id} ($${metric.label.interface})"
+              "targetAxis": "Y1"
             }
           ],
           "timeshiftDuration": "0s",
@@ -23,15 +23,15 @@
         }
       },
       {
-        "title": "PCAP Files Uploaded (by Sniffer ID)",
+        "title": "PCAP Files Uploaded (Overall)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_files_uploaded_count | filter resource.type =~ \"gce_instance|k8s_container|global\" | group_by [metric.label.sniffer_id], {aggregation_function: rate(sum(value.pcap_files_uploaded_count))} | every 1m | within 5m"
+                "prometheusQuery": "sum(rate(logging_googleapis_com:user_pcap_files_uploaded_count{monitored_resource=\"global\"}[$${__interval}]))"
               },
               "plotType": "LINE",
-              "legendTemplate": "$${metric.label.sniffer_id}"
+              "targetAxis": "Y1"
             }
           ],
           "timeshiftDuration": "0s",
@@ -47,9 +47,10 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch cloud_run_revision | metric 'run.googleapis.com/request_count' | filter resource.service_name == '${cloud_run_processor_service_name}' && metric.response_code_class == '2xx' | group_by [], {aggregation_function: rate(sum(value.request_count))} | every 1m | within 5m"
+                "prometheusQuery": "sum(rate(run_googleapis_com_request_count{service_name=\"${cloud_run_processor_service_name}\", response_code_class=\"2xx\"}[$${__interval}]))"
               },
-              "plotType": "STACKED_BAR"
+              "plotType": "STACKED_BAR",
+              "targetAxis": "Y1"
             }
           ],
           "timeshiftDuration": "0s",
@@ -65,9 +66,10 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch pubsub_subscription | metric 'pubsub.googleapis.com/subscription/num_unacked_messages_by_region' | filter resource.subscription_id == '${pubsub_processor_subscription_id}' | group_by [], {aggregation_function: max(value.num_unacked_messages_by_region)} | every 1m | within 5m"
+                "prometheusQuery": "max(pubsub_googleapis_com_subscription_num_unacked_messages_by_region{subscription_id=\"${pubsub_processor_subscription_id}\"})"
               },
-              "plotType": "LINE"
+              "plotType": "LINE",
+              "targetAxis": "Y1"
             }
           ],
           "timeshiftDuration": "0s",
@@ -78,14 +80,15 @@
         }
       },
       {
-        "title": "UDM Events Generated (Rate)",
+        "title": "UDM Events Generated (Overall Rate)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/udm_events_generated_count | group_by [], {aggregation_function: rate(sum(value.udm_events_generated_count))} | every 1m | within 5m"
+                "prometheusQuery": "sum(rate(logging_googleapis_com:user_udm_events_generated_count{monitored_resource=\"global\"}[$${__interval}]))"
               },
-              "plotType": "LINE"
+              "plotType": "LINE",
+              "targetAxis": "Y1"
             }
           ],
           "timeshiftDuration": "0s",
@@ -96,15 +99,15 @@
         }
       },
       {
-        "title": "PCAP Upload Errors (by Sniffer ID)",
+        "title": "PCAP Upload Errors (Overall)",
         "xyChart": {
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_upload_errors_count | filter resource.type =~ \"gce_instance|k8s_container|global\" | group_by [metric.label.sniffer_id], {aggregation_function: sum(value.pcap_upload_errors_count)} | every 1m | within 5m"
+                "prometheusQuery": "sum(increase(logging_googleapis_com:user_pcap_upload_errors_count{monitored_resource=\"global\"}[$${__interval}]))"
               },
               "plotType": "LINE",
-              "legendTemplate": "$${metric.label.sniffer_id}"
+              "targetAxis": "Y1"
             }
           ],
           "timeshiftDuration": "0s",
