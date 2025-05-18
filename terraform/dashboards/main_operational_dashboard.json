@@ -1,7 +1,7 @@
 {
   "displayName": "Chronicle Sniffer Operational Dashboard",
   "gridLayout": {
-    "columns": "2",
+    "columns": 2,
     "widgets": [
       {
         "title": "Sniffer Heartbeats (by Sniffer ID & Interface)",
@@ -9,7 +9,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/sniffer_heartbeat_count\n| filter (resource.type == 'gce_instance' || resource.type == 'k8s_container' || resource.type == 'global')\n| group_by [metric.label.sniffer_id, metric.label.interface],\n    {aggregation_function: rate(sum(value.sniffer_heartbeat_count))}\n| every 1m\n| within 5m"
+                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/sniffer_heartbeat_count | filter resource.type =~ \"gce_instance|k8s_container|global\" | group_by [metric.label.sniffer_id, metric.label.interface], {aggregation_function: rate(sum(value.sniffer_heartbeat_count))} | every 1m | within 5m"
               },
               "plotType": "LINE",
               "legendTemplate": "$${metric.label.sniffer_id} ($${metric.label.interface})"
@@ -28,7 +28,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_files_uploaded_count\n| filter (resource.type == 'gce_instance' || resource.type == 'k8s_container' || resource.type == 'global')\n| group_by [metric.label.sniffer_id],\n    {aggregation_function: rate(sum(value.pcap_files_uploaded_count))}\n| every 1m\n| within 5m"
+                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_files_uploaded_count | filter resource.type =~ \"gce_instance|k8s_container|global\" | group_by [metric.label.sniffer_id], {aggregation_function: rate(sum(value.pcap_files_uploaded_count))} | every 1m | within 5m"
               },
               "plotType": "LINE",
               "legendTemplate": "$${metric.label.sniffer_id}"
@@ -47,7 +47,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch cloud_run_revision\n| metric 'run.googleapis.com/request_count'\n| filter (resource.service_name == '${cloud_run_processor_service_name}' && metric.response_code_class == '2xx')\n| group_by [], {aggregation_function: rate(sum(value.request_count))}\n| every 1m\n| within 5m"
+                "timeSeriesQueryLanguage": "fetch cloud_run_revision | metric 'run.googleapis.com/request_count' | filter resource.service_name == '${cloud_run_processor_service_name}' && metric.response_code_class == '2xx' | group_by [], {aggregation_function: rate(sum(value.request_count))} | every 1m | within 5m"
               },
               "plotType": "STACKED_BAR"
             }
@@ -65,7 +65,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch pubsub_subscription\n| metric 'pubsub.googleapis.com/subscription/num_unacked_messages_by_region'\n| filter resource.subscription_id == '${pubsub_processor_subscription_id}'\n| group_by [], {aggregation_function: max(value.num_unacked_messages_by_region)}\n| every 1m\n| within 5m"
+                "timeSeriesQueryLanguage": "fetch pubsub_subscription | metric 'pubsub.googleapis.com/subscription/num_unacked_messages_by_region' | filter resource.subscription_id == '${pubsub_processor_subscription_id}' | group_by [], {aggregation_function: max(value.num_unacked_messages_by_region)} | every 1m | within 5m"
               },
               "plotType": "LINE"
             }
@@ -83,7 +83,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch cloud_run_revision\n| metric 'logging.googleapis.com/user/udm_events_generated_count'\n| group_by [], {aggregation_function: rate(sum(value.udm_events_generated_count))}\n| every 1m\n| within 5m"
+                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/udm_events_generated_count | group_by [], {aggregation_function: rate(sum(value.udm_events_generated_count))} | every 1m | within 5m"
               },
               "plotType": "LINE"
             }
@@ -101,7 +101,7 @@
           "dataSets": [
             {
               "timeSeriesQuery": {
-                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_upload_errors_count\n| filter (resource.type == 'gce_instance' || resource.type == 'k8s_container' || resource.type == 'global')\n| group_by [metric.label.sniffer_id],\n    {aggregation_function: sum(value.pcap_upload_errors_count)}\n| every 1m\n| within 5m"
+                "timeSeriesQueryLanguage": "fetch logging.googleapis.com/user/pcap_upload_errors_count | filter resource.type =~ \"gce_instance|k8s_container|global\" | group_by [metric.label.sniffer_id], {aggregation_function: sum(value.pcap_upload_errors_count)} | every 1m | within 5m"
               },
               "plotType": "LINE",
               "legendTemplate": "$${metric.label.sniffer_id}"
