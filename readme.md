@@ -1,8 +1,9 @@
-# Chronicle-Sniffer: A Scalable Wireshark-to-SecOps Pipeline on GCP
+# Chronicle-Sniffer  
+A Scalable Wireshark-to-SecOps Pipeline on GCP
 
-**Author:** [Filippo Lucchesi](https://github.com/fillol)
-**Course:** [Scalable and Reliable Services](https://www.unibo.it/en/study/course-units-transferable-skills-moocs/course-unit-catalogue/course-unit/2024/472686), [University of Bologna](https://www.unibo.it)
-**Evolution of:** [Wireshark-to-Chronicle-Pipeline (Cybersecurity Projects 2024)](https://github.com/fillol/Wireshark-to-Chronicle-Pipeline)
+**Author:** [Filippo Lucchesi](https://github.com/fillol)  
+**Course:** [Scalable and Reliable Services](https://www.unibo.it/en/study/course-units-transferable-skills-moocs/course-unit-catalogue/course-unit/2024/472686), [University of Bologna](https://www.unibo.it)  
+**Evolution of:** [Wireshark-to-Chronicle-Pipeline (Cybersecurity Projects 2024)](https://github.com/fillol/Wireshark-to-Chronicle-Pipeline)  
 
 This project implements a robust, scalable, and event-driven pipeline to capture network traffic using `tshark`, process it, and transform it into the Unified Data Model (UDM) for security analytics, all orchestrated on Google Cloud Platform (GCP) using Terraform. It evolves from an initial local processing concept into a cloud-native solution designed for enhanced reliability and scalability.
 
