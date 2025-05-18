@@ -1,17 +1,11 @@
 {
   "displayName": "Chronicle-Sniffer Operational Dashboard",
   "gridLayout": {
-    "columns": 2,
+    "columns": 4,
     "widgets": [
       {
         "text": {
           "content": "# Panoramica Sniffer On-Premises/Edge\n---",
-          "format": "MARKDOWN"
-        }
-      },
-      {
-        "text": {
-          "content": "",
           "format": "MARKDOWN"
         }
       },
@@ -142,12 +136,6 @@
         }
       },
       {
-        "text": {
-          "content": "",
-          "format": "MARKDOWN"
-        }
-      },
-      {
         "title": "Cloud Run - Processed Requests (Success) - ${cloud_run_processor_service_name}",
         "xyChart": {
           "dataSets": [
@@ -206,19 +194,7 @@
       },
       {
         "text": {
-          "content": "",
-          "format": "MARKDOWN"
-        }
-      },
-      {
-        "text": {
           "content": "# Dettaglio Prestazioni Processor Cloud Run\n---",
-          "format": "MARKDOWN"
-        }
-      },
-      {
-        "text": {
-          "content": "",
           "format": "MARKDOWN"
         }
       },
@@ -357,19 +333,7 @@
       },
       {
         "text": {
-          "content": "",
-          "format": "MARKDOWN"
-        }
-      },
-      {
-        "text": {
           "content": "# Latenza di Elaborazione End-to-End\n---",
-          "format": "MARKDOWN"
-        }
-      },
-      {
-        "text": {
-          "content": "",
           "format": "MARKDOWN"
         }
       },
