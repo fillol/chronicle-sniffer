@@ -1,120 +1,336 @@
 {
-  "displayName": "Chronicle-Sniffer Operational Dashboard",
+  "displayName": "Chronicle-Sniffer: Clean Operational Dashboard",
+  "dashboardFilters": [],
   "gridLayout": {
-    "columns": 2,
+    "columns": "4",
     "widgets": [
       {
-        "title": "Sniffer Heartbeats (Overall)",
-        "xyChart": {
-          "dataSets": [
-            {
-              "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com:user_sniffer_heartbeat_count{monitored_resource=\"global\"}[$${__interval}]))"
-              },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
-            }
-          ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Heartbeats/min",
-            "scale": "LINEAR"
+        "title": "",
+        "id": "header_sniffer_edge",
+        "text": {
+          "content": "## 🛰️  Sniffer & Edge\n---",
+          "format": "MARKDOWN",
+          "style": {
+            "backgroundColor": "#E8F0FE",
+            "textColor": "#1a73e8"
           }
         }
       },
       {
-        "title": "PCAP Files Uploaded (Overall)",
+        "title": "Sniffer - Heartbeats",
+        "id": "widget_sniffer_heartbeats",
         "xyChart": {
+          "chartOptions": { "mode": "COLOR", "showLegend": true },
           "dataSets": [
             {
-              "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com:user_pcap_files_uploaded_count{monitored_resource=\"global\"}[$${__interval}]))"
-              },
+              "legendTemplate": "{{metric.label.sniffer_id}} ({{metric.label.interface}})",
+              "minAlignmentPeriod": "60s",
               "plotType": "LINE",
-              "targetAxis": "Y1"
+              "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "groupByFields": ["metric.label.sniffer_id", "metric.label.interface"],
+                    "perSeriesAligner": "ALIGN_RATE"
+                  },
+                  "filter": "metric.type=\"logging.googleapis.com/user/sniffer_heartbeat_count\" resource.type=\"global\""
+                }
+              }
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Uploads/min",
-            "scale": "LINEAR"
+          "yAxis": { "label": "Heartbeats/sec", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "Sniffer - PCAPs Uploaded",
+        "id": "widget_pcap_uploads_by_id",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR", "showLegend": true },
+          "dataSets": [
+            {
+              "legendTemplate": "{{metric.label.sniffer_id}}",
+              "minAlignmentPeriod": "60s",
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "groupByFields": ["metric.label.sniffer_id"],
+                    "perSeriesAligner": "ALIGN_RATE"
+                  },
+                  "filter": "metric.type=\"logging.googleapis.com/user/pcap_files_uploaded_count\" resource.type=\"global\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "Uploads/sec", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "Sniffer - PCAP Upload Errors",
+        "id": "widget_pcap_upload_errors",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR", "showLegend": true },
+          "dataSets": [
+            {
+              "legendTemplate": "{{metric.label.sniffer_id}}",
+              "minAlignmentPeriod": "60s",
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "groupByFields": ["metric.label.sniffer_id"],
+                    "perSeriesAligner": "ALIGN_DELTA"
+                  },
+                  "filter": "metric.type=\"logging.googleapis.com/user/pcap_upload_errors_count\" resource.type=\"global\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "Error Count / min", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "",
+        "id": "header_cloud_pipeline",
+        "text": {
+          "content": "##  📣 Cloud Pub/Sub\n---",
+          "format": "MARKDOWN",
+          "style": {
+            "backgroundColor": "#E8F0FE",
+            "textColor": "#1a73e8"
           }
         }
       },
       {
-        "title": "Cloud Run - Processed Requests (Success) - ${cloud_run_processor_service_name}",
+        "title": "Pub/Sub - Unacknowledged Msgs",
+        "id": "widget_pubsub_unacked",
         "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
           "dataSets": [
             {
+              "minAlignmentPeriod": "60s",
+              "plotType": "LINE",
+              "targetAxis": "Y1",
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(run_googleapis_com_request_count{service_name=\"${cloud_run_processor_service_name}\", response_code_class=\"2xx\"}[$${__interval}]))"
-              },
+                "timeSeriesFilter": {
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "crossSeriesReducer": "REDUCE_MAX",
+                    "perSeriesAligner": "ALIGN_MAX"
+                  },
+                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/num_unacked_messages_by_region\" resource.labels.subscription_id=\"chronicle-sniffer-processor-sub\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "Count", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "Pub/Sub - DLQ Messages",
+        "id": "widget_pubsub_dlq",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
+          "dataSets": [
+            {
+              "minAlignmentPeriod": "60s",
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "crossSeriesReducer": "REDUCE_MAX",
+                    "perSeriesAligner": "ALIGN_MAX"
+                  },
+                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" resource.labels.subscription_id=\"chronicle-sniffer-processor-sub-dlq\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "DLQ Msg Count", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "Pub/Sub - Publish Errors",
+        "id": "widget_pubsub_publish_errors",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR", "showLegend": true },
+          "dataSets": [
+            {
+              "legendTemplate": "{{metric.label.sniffer_id}}",
+              "minAlignmentPeriod": "60s",
+              "plotType": "LINE",
+              "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "groupByFields": ["metric.label.sniffer_id"],
+                    "perSeriesAligner": "ALIGN_DELTA"
+                  },
+                  "filter": "metric.type=\"logging.googleapis.com/user/pubsub_publish_errors_count\" resource.type=\"global\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "Error Count / min", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "",
+        "id": "header_processor_performance",
+        "text": {
+          "content": "## ⚙️  Cloud Processor\n---",
+          "format": "MARKDOWN",
+          "style": {
+            "backgroundColor": "#E8F0FE",
+            "textColor": "#1a73e8"
+          }
+        }
+      },
+      {
+        "title": "Processor - UDM Upload Success Rate",
+        "id": "widget_proc_udm_upload_success",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
+          "dataSets": [
+            {
+              "minAlignmentPeriod": "60s", "plotType": "LINE", "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE" },
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_upload_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "UDM Uploads/sec", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "Processor - PCAP Download Success Rate",
+        "id": "widget_proc_pcap_download_success",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
+          "dataSets": [
+            {
+              "minAlignmentPeriod": "60s", "plotType": "LINE", "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE" },
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "Downloads/sec", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "Processor - PCAP Download Not Found",
+        "id": "widget_proc_pcap_download_notfound",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
+          "dataSets": [
+            {
+              "minAlignmentPeriod": "60s", "plotType": "LINE", "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA" },
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_notfound_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                }
+              }
+            }
+          ],
+          "yAxis": { "label": "Not Found Count / min", "scale": "LINEAR" }
+        }
+      },
+      {
+        "title": "Cloud Run - Successful Requests",
+        "id": "widget_cr_processed_requests",
+        "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
+          "dataSets": [
+            {
+              "minAlignmentPeriod": "60s",
               "plotType": "STACKED_BAR",
-              "targetAxis": "Y1"
+              "targetAxis": "Y1",
+              "timeSeriesQuery": {
+                "timeSeriesFilter": {
+                  "aggregation": {
+                    "alignmentPeriod": "60s",
+                    "crossSeriesReducer": "REDUCE_SUM",
+                    "perSeriesAligner": "ALIGN_RATE"
+                  },
+                  "filter": "metric.type=\"run.googleapis.com/request_count\" resource.labels.service_name=\"chronicle-sniffer-processor\" metric.labels.response_code_class=\"2xx\""
+                }
+              }
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Requests/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "Requests/sec", "scale": "LINEAR" }
         }
       },
       {
-        "title": "Pub/Sub - Unacked Msgs (Sub: ${pubsub_processor_subscription_id})",
+        "title": "Processor - TShark Conversion Success Rate",
+        "id": "widget_proc_tshark_success",
         "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
           "dataSets": [
             {
+              "minAlignmentPeriod": "60s", "plotType": "LINE", "targetAxis": "Y1",
               "timeSeriesQuery": {
-                "prometheusQuery": "max(pubsub_googleapis_com_subscription_num_unacked_messages_by_region{subscription_id=\"${pubsub_processor_subscription_id}\"})"
-              },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+                "timeSeriesFilter": {
+                  "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE" },
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                }
+              }
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Count",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "TShark Conversions/sec", "scale": "LINEAR" }
         }
       },
       {
-        "title": "UDM Events Generated (Overall Rate)",
+        "title": "Processor - TShark Conversion Errors",
+        "id": "widget_proc_tshark_errors",
         "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
           "dataSets": [
             {
+              "minAlignmentPeriod": "60s", "plotType": "LINE", "targetAxis": "Y1",
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(rate(logging_googleapis_com:user_udm_events_generated_count{monitored_resource=\"global\"}[$${__interval}]))"
-              },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+                "timeSeriesFilter": {
+                  "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA" },
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_error_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                }
+              }
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Events/sec",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "TShark Error Count / min", "scale": "LINEAR" }
         }
       },
       {
-        "title": "PCAP Upload Errors (Overall)",
+        "title": "Processor - 95th % PCAP Processing Latency",
+        "id": "widget_proc_95p_latency",
         "xyChart": {
+          "chartOptions": { "mode": "COLOR" },
           "dataSets": [
             {
+              "minAlignmentPeriod": "60s", "plotType": "LINE", "targetAxis": "Y1",
               "timeSeriesQuery": {
-                "prometheusQuery": "sum(increase(logging_googleapis_com:user_pcap_upload_errors_count{monitored_resource=\"global\"}[$${__interval}]))"
-              },
-              "plotType": "LINE",
-              "targetAxis": "Y1"
+                "timeSeriesFilter": {
+                  "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_PERCENTILE_95" },
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_processing_latency_seconds\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                }
+              }
             }
           ],
-          "timeshiftDuration": "0s",
-          "yAxis": {
-            "label": "Error Count (sum over 5m window)",
-            "scale": "LINEAR"
-          }
+          "yAxis": { "label": "95p Latency (s)", "scale": "LINEAR" }
         }
       }
     ]

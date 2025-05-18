@@ -33,6 +33,7 @@ fi
 # Verify required tools are installed.
 if ! command -v tshark &> /dev/null; then echo "Error: tshark not found."; exit 1; fi
 if ! command -v gcloud &> /dev/null; then echo "Error: gcloud not found."; exit 1; fi
+if ! command -v stat &> /dev/null; then echo "Error: stat not found."; exit 1; fi
 
 # Activate Service Account using the provided key file for gcloud operations.
 echo "(ID: $SNIFFER_ID) Activating Service Account using key $GCP_KEY_FILE..."
@@ -79,6 +80,7 @@ send_heartbeat() {
             tshark_status="running"
         fi
         echo "[$(date)] (ID: $SNIFFER_ID) (IFACE: $INTERFACE_NAME_ONLY) Heartbeat. tshark PID: $TSHARK_PID (Status: $tshark_status)"
+        echo "[$(date)] (ID: $SNIFFER_ID) TSHARK_STATUS: $tshark_status" # Explicit log for TSHARK_STATUS metric
         sleep 60 # Send heartbeat every 60 seconds
     done
 }
@@ -121,6 +123,10 @@ while kill -0 $TSHARK_PID 2>/dev/null; do
         if is_processed "$base_pcap_file" "${processed_files[@]}"; then continue; fi
 
         echo "[$(date)] (ID: $SNIFFER_ID) Detected completed file: $base_pcap_file"
+        
+        # Get file size
+        file_size_bytes=$(stat -c%s "$pcap_file")
+        echo "[$(date)] (ID: $SNIFFER_ID) PCAP_SIZE_BYTES: $file_size_bytes FILE: $base_pcap_file"
 
         # 1. Upload the completed .pcap file to Google Cloud Storage.
         echo "[$(date)] (ID: $SNIFFER_ID) Uploading $base_pcap_file to gs://${INCOMING_BUCKET}/..."
@@ -136,7 +142,7 @@ while kill -0 $TSHARK_PID 2>/dev/null; do
                 rm "$pcap_file"
                 echo "[$(date)] (ID: $SNIFFER_ID) Removed local file: $pcap_file"
             else
-                echo "[$(date)] (ID: $SNIFFER_ID) Error: Failed to publish notification for $base_pcap_file."
+                echo "[$(date)] (ID: $SNIFFER_ID) Error: Failed to publish notification for $base_pcap_file." # Log for Pub/Sub publish error metric
                 # File is not removed or added to processed_files, will retry on next loop iteration.
             fi
         else
