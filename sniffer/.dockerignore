@@ -1,4 +1,5 @@
 gcp-key/
+captures/
 .env
 .env.example
 compose.yml
