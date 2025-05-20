@@ -1,5 +1,5 @@
 # [Chronicle-sniffer](https://hub.docker.com/r/fillol/chronicle-sniffer)
-*A SecOps lens on the sensitive heart of your businessy*
+*A SecOps lens on the sensitive heart of your business*
 
 ## Overview
 
