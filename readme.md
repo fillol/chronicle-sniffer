@@ -1,18 +1,15 @@
 # Chronicle-Sniffer  
 <p align="left">
-  <img src="https://img.shields.io/badge/GCP-Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud" alt="GCP">
-  <img src="https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform" alt="Terraform">
-  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
-  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/TShark-1679A7?style=for-the-badge&logo=wireshark&logoColor=white" alt="TShark">
+  <a href="https://cloud.google.com/" target="_blank"><img src="https://img.shields.io/badge/GCP-Google_Cloud-4285F4?style=flat&logo=google-cloud" alt="GCP"></a>
+  <a href="https://www.terraform.io/" target="_blank"><img src="https://img.shields.io/badge/Terraform-7B42BC?style=flat&logo=terraform" alt="Terraform"></a>
+  <a href="https://www.docker.com/" target="_blank"><img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker"></a>
+  <a href="https://www.python.org/" target="_blank"><img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
+  <a href="https://www.wireshark.org/docs/man-pages/tshark.html" target="_blank"><img src="https://img.shields.io/badge/TShark-1679A7?style=flat&logo=wireshark&logoColor=white" alt="TShark"></a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/fillol/Chronicle-Sniffer?style=for-the-badge" alt="Licenza: MIT">
+    <img src="https://img.shields.io/github/license/fillol/Chronicle-Sniffer?style=flat" alt="Licenza: MIT">
   </a>
-  <a href="https://hub.docker.com/r/fillol/chronicle-sniffer">
-    <img src="https://img.shields.io/badge/Docker_Hub-fillol%2Fchronicle--sniffer-0094D6?style=for-the-badge&logo=docker" alt="Docker Hub: fillol/chronicle-sniffer">
-  </a>
-  <a href="https://github.com/fillol/Chronicle-Sniffer/stargazers">
-    <img src="https://img.shields.io/github/stars/fillol/Chronicle-Sniffer?style=for-the-badge&logo=github&label=Stars" alt="GitHub Stars">
+  <a href="https://hub.docker.com/r/fillol/chronicle-sniffer" target="_blank">
+    <img src="https://img.shields.io/badge/Docker_Hub-fillol%2Fchronicle--sniffer-0094D6?style=flat&logo=docker" alt="Docker Hub: fillol/chronicle-sniffer">
   </a>
 </p>
 
