@@ -1,5 +1,23 @@
 # Chronicle-Sniffer  
-A Scalable Wireshark-to-SecOps Pipeline on GCP
+<p align="left">
+  <img src="https://img.shields.io/badge/GCP-Google_Cloud-4285F4?style=for-the-badge&logo=google-cloud" alt="GCP">
+  <img src="https://img.shields.io/badge/Terraform-7B42BC?style=for-the-badge&logo=terraform" alt="Terraform">
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/TShark-1679A7?style=for-the-badge&logo=wireshark&logoColor=white" alt="TShark">
+  <a href="LICENSE">
+    <img src="https://img.shields.io/github/license/fillol/Chronicle-Sniffer?style=for-the-badge" alt="Licenza: MIT">
+  </a>
+  <a href="https://hub.docker.com/r/fillol/chronicle-sniffer">
+    <img src="https://img.shields.io/badge/Docker_Hub-fillol%2Fchronicle--sniffer-0094D6?style=for-the-badge&logo=docker" alt="Docker Hub: fillol/chronicle-sniffer">
+  </a>
+  <a href="https://github.com/fillol/Chronicle-Sniffer/stargazers">
+    <img src="https://img.shields.io/github/stars/fillol/Chronicle-Sniffer?style=for-the-badge&logo=github&label=Stars" alt="GitHub Stars">
+  </a>
+</p>
+
+
+A Scalable Wireshark-to-SecOps Pipeline on Google Cloud Platform  
 
 **Author:** [Filippo Lucchesi](https://github.com/fillol)  
 **Course:** [Scalable and Reliable Services](https://www.unibo.it/en/study/course-units-transferable-skills-moocs/course-unit-catalogue/course-unit/2024/472686), [University of Bologna](https://www.unibo.it)  
@@ -180,6 +198,7 @@ gcloud auth configure-docker REGION-docker.pkg.dev
     i.  To see logs: `docker-compose logs -f` (from within the `sniffer/` directory, or specify service name).
     j.  To stop: `docker-compose down` (from within the `sniffer/` directory).
 
+
 ## Testing the Cloud-Side Pipeline (Simulating the Sniffer)
 
 This section guides you through testing the GCP processing pipeline (Pub/Sub, Cloud Run, GCS) without running the actual on-premises sniffer. This is useful for validating the cloud components independently.
@@ -241,6 +260,7 @@ This section guides you through testing the GCP processing pipeline (Pub/Sub, Cl
     *   **Permission Errors (403) from GCS for Cloud Run SA**: Ensure the `cloud_run_sa` (e.g., `chronicle-sniffer-run-sa@...`) has the necessary roles (`storage.objectViewer` on incoming bucket, `storage.objectAdmin` or `storage.objectCreator` + delete on processed bucket, and `storage.legacyBucketReader` on both for startup checks). Terraform should manage this.
 
 ---
+
 ## Implementation Details
 
 ### Terraform Modules
@@ -323,6 +343,7 @@ The pipeline is designed for comprehensive observability:
     **Customization and Iteration**: The dashboard's JSON definition allows for precise control over its appearance and a version-controlled approach to its evolution.
 
 ---
+
 ## Educational Value & Cloud-Native Principles
 
 This project demonstrates several key concepts relevant to building scalable and reliable cloud services:
@@ -334,6 +355,7 @@ This project demonstrates several key concepts relevant to building scalable and
 *   **Security**: OIDC for secure, token-based authentication between Pub/Sub and Cloud Run, and IAM least-privilege for service accounts.
 *   **Observability**: Deep integration with Cloud Logging and Cloud Monitoring, featuring custom metrics and a detailed operational dashboard for comprehensive system insight.
 
+
 ## Security Considerations
 
 *   **Least-Privilege IAM**: Service Accounts for the sniffer (on-prem/VM) and the Cloud Run processor are granted only the necessary permissions for their tasks.
@@ -341,6 +363,7 @@ This project demonstrates several key concepts relevant to building scalable and
 *   **Service Account Key Management**: For the on-premises sniffer, the SA key is intended to be mounted securely into the Docker container. Best practices for key rotation and restricted access should be followed.
 *   **Firewall Rules**: The Terraform configuration for the optional test VM includes firewall rules that restrict SSH access to specified source IP ranges.
 *   **GCS Bucket Security**: Buckets are configured with Uniform Bucket-Level Access (UBLA), and public access is prevented. Optional CMEK can be configured for an additional layer of encryption control.
+
 
 ## Maintenance & Troubleshooting
 
@@ -368,5 +391,6 @@ This project demonstrates several key concepts relevant to building scalable and
         *   Ensure variable names in the dashboard JSON (`${cloud_run_processor_service_name}`, etc.) match those passed by the `templatefile` function in `terraform/main.tf`.
 
 ---
+
 ## License
 This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
