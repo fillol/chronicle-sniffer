@@ -1,16 +1,16 @@
-# docker-compose.yaml per avviare il container dello sniffer on-premises
-
 services:
   sniffer:
-    build: .
-    container_name: chronicle-sniffer
+    build:
+      context: .
+    # image: fillol/chronicle-sniffer:latest # Or your preferred pre-built image
+    container_name: chronicle-sniffer-instance
     restart: unless-stopped
     env_file:
       - .env
     network_mode: "host"
     cap_add:
-      - NET_ADMIN # Permessi per gestire interfacce di rete
-      - NET_RAW   # Permessi per leggere pacchetti raw
-
+      - NET_ADMIN
+      - NET_RAW
     volumes:
-      - ./sniffer/gcp-key:/app/gcp-key:ro # Monta la chiave in sola lettura
+      - ./gcp-key:/app/gcp-key:ro
+      - ./captures:/app/captures
