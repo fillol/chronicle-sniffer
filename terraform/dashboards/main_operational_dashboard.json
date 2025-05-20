@@ -107,7 +107,7 @@
         }
       },
       {
-        "title": "Pub/Sub - Unacknowledged Msgs",
+        "title": "Pub/Sub - Unacknowledged Msgs (Primary Sub)",
         "id": "widget_pubsub_unacked",
         "xyChart": {
           "chartOptions": { "mode": "COLOR" },
@@ -123,7 +123,7 @@
                     "crossSeriesReducer": "REDUCE_MAX",
                     "perSeriesAligner": "ALIGN_MAX"
                   },
-                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/num_unacked_messages_by_region\" resource.labels.subscription_id=\"chronicle-sniffer-processor-sub\""
+                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/num_unacked_messages_by_region\" resource.labels.subscription_id=\"${pubsub_processor_subscription_id}\""
                 }
               }
             }
@@ -132,7 +132,7 @@
         }
       },
       {
-        "title": "Pub/Sub - DLQ Messages",
+        "title": "Pub/Sub - Dead-Lettered Msgs (From Primary Sub)",
         "id": "widget_pubsub_dlq",
         "xyChart": {
           "chartOptions": { "mode": "COLOR" },
@@ -145,19 +145,19 @@
                 "timeSeriesFilter": {
                   "aggregation": {
                     "alignmentPeriod": "60s",
-                    "crossSeriesReducer": "REDUCE_MAX",
-                    "perSeriesAligner": "ALIGN_MAX"
+                    "crossSeriesReducer": "REDUCE_SUM",
+                    "perSeriesAligner": "ALIGN_DELTA"
                   },
-                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/num_undelivered_messages\" resource.labels.subscription_id=\"chronicle-sniffer-processor-sub-dlq\""
+                  "filter": "metric.type=\"pubsub.googleapis.com/subscription/dead_letter_message_count\" resource.labels.subscription_id=\"${pubsub_processor_subscription_id}\""
                 }
               }
             }
           ],
-          "yAxis": { "label": "DLQ Msg Count", "scale": "LINEAR" }
+          "yAxis": { "label": "DLQ Msg Count / min", "scale": "LINEAR" }
         }
       },
       {
-        "title": "Pub/Sub - Publish Errors",
+        "title": "Pub/Sub - Publish Errors (Sniffer)",
         "id": "widget_pubsub_publish_errors",
         "xyChart": {
           "chartOptions": { "mode": "COLOR", "showLegend": true },
@@ -205,7 +205,7 @@
               "timeSeriesQuery": {
                 "timeSeriesFilter": {
                   "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE" },
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_upload_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_udm_upload_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\""
                 }
               }
             }
@@ -224,7 +224,7 @@
               "timeSeriesQuery": {
                 "timeSeriesFilter": {
                   "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE" },
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\""
                 }
               }
             }
@@ -243,7 +243,7 @@
               "timeSeriesQuery": {
                 "timeSeriesFilter": {
                   "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA" },
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_notfound_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_download_notfound_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\""
                 }
               }
             }
@@ -268,7 +268,7 @@
                     "crossSeriesReducer": "REDUCE_SUM",
                     "perSeriesAligner": "ALIGN_RATE"
                   },
-                  "filter": "metric.type=\"run.googleapis.com/request_count\" resource.labels.service_name=\"chronicle-sniffer-processor\" metric.labels.response_code_class=\"2xx\""
+                  "filter": "metric.type=\"run.googleapis.com/request_count\" resource.labels.service_name=\"${cloud_run_processor_service_name}\" metric.labels.response_code_class=\"2xx\""
                 }
               }
             }
@@ -287,7 +287,7 @@
               "timeSeriesQuery": {
                 "timeSeriesFilter": {
                   "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_RATE" },
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_success_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\""
                 }
               }
             }
@@ -306,7 +306,7 @@
               "timeSeriesQuery": {
                 "timeSeriesFilter": {
                   "aggregation": { "alignmentPeriod": "60s", "crossSeriesReducer": "REDUCE_SUM", "perSeriesAligner": "ALIGN_DELTA" },
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_error_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_tshark_conversion_error_count\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\""
                 }
               }
             }
@@ -325,7 +325,7 @@
               "timeSeriesQuery": {
                 "timeSeriesFilter": {
                   "aggregation": { "alignmentPeriod": "60s", "perSeriesAligner": "ALIGN_PERCENTILE_95" },
-                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_processing_latency_seconds\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"chronicle-sniffer-processor\""
+                  "filter": "metric.type=\"logging.googleapis.com/user/processor_pcap_processing_latency_seconds\" resource.type=\"cloud_run_revision\" resource.labels.service_name=\"${cloud_run_processor_service_name}\""
                 }
               }
             }
