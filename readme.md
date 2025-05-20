@@ -9,7 +9,7 @@ This project implements a robust, scalable, and event-driven pipeline to capture
 
 ## Key Features & Enhancements
 
-*   **Hybrid Capture Model**: A Dockerized `tshark` sniffer designed for on-premises or edge deployment handles initial packet capture, automatically rotating PCAP files, uploading them to Google Cloud Storage (GCS), and notifying a Pub/Sub topic.
+*   **Hybrid Capture Model**: A Dockerized `tshark` sniffer designed for on-premises or edge deployment handles initial packet capture, automatically rotating PCAP files (supporting `.pcap` and `.pcapng`), uploading them to Google Cloud Storage (GCS), and notifying a Pub/Sub topic.
 *   **Serverless, Scalable Processing**: A GCP Cloud Run service acts as a serverless processor, triggered by Pub/Sub messages, to manage the demanding PCAP-to-UDM transformation.
 *   **Optimized Core Transformation (`json2udm_cloud.py`)**: The central Python script, originally designed for local batch processing, has been significantly re-engineered. It now employs **streaming JSON parsing (`ijson`)** to handle potentially massive `tshark` outputs efficiently within Cloud Run's memory constraints, mapping raw packet data to UDM. This is the analytical heart of the project.
 *   **Resilient and Decoupled Architecture**: Leverages a Pub/Sub-driven workflow for loose coupling between capture and processing. Includes dead-letter queue (DLQ) support for failed messages, Cloud Run health probes for service reliability, and robust error handling within the processing logic.
@@ -61,7 +61,7 @@ These adaptations were crucial to transition the core logic from a local, batch-
 ## Repository Layout
 
 ```plaintext
-Chronicle-sniffer/
+Chronicle-Sniffer/
 ├── terraform/                      # Terraform IaC modules and configurations
 │   ├── modules/
 │   │   ├── gcs_buckets/            # Manages GCS buckets
@@ -80,7 +80,8 @@ Chronicle-sniffer/
 │   ├── Dockerfile                  # Dockerfile for the sniffer
 │   ├── sniffer_entrypoint.sh       # Entrypoint script for capture and upload
 │   ├── compose.yml                 # Docker Compose for local sniffer testing
-│   └── .env.example                # Environment variables for sniffer
+│   ├── .env.example                # Environment variables for sniffer example
+│   └── readme.md                   # Sniffer-specific README
 ├── processor/                      # Cloud Run Processor component
 │   ├── Dockerfile                  # Dockerfile for the processor
 │   ├── processor_app.py            # Flask app orchestrating the processing
@@ -99,11 +100,11 @@ Chronicle-sniffer/
 *   `gcloud` CLI installed and authenticated.
 *   Terraform (>=1.1.0) installed.
 *   Docker installed (for building images and optionally running the sniffer locally).
-*   An Artifact Registry Docker repository (e.g., `chronicle-sniffer`) in your GCP project and region.
+*   An Artifact Registry Docker repository (e.g., `chronicle-sniffer`) in your GCP project and region (if you intend to host your custom-built images there).
 
 ## Environment Setup
 
-Before deploying, authenticate `gcloud` and configure Docker for Artifact Registry:
+Before deploying, authenticate `gcloud` and configure Docker for Artifact Registry (if using private images from AR):
 
 ```bash
 # Log in to your Google account (this will open a browser window)
@@ -115,7 +116,7 @@ gcloud config set project YOUR_PROJECT_ID
 # Authenticate Application Default Credentials (used by Terraform and other tools)
 gcloud auth application-default login
 
-# Configure Docker to authenticate with Artifact Registry
+# Configure Docker to authenticate with Artifact Registry (if needed)
 # Replace REGION with your Artifact Registry region (e.g., europe-west8)
 gcloud auth configure-docker REGION-docker.pkg.dev
 ```
@@ -124,11 +125,12 @@ gcloud auth configure-docker REGION-docker.pkg.dev
 
 1.  **Clone the Repository**:
     ```bash
-    git clone https://github.com/fillol/Chronicle-sniffer.git # Or your repo URL
-    cd Chronicle-sniffer
+    git clone https://github.com/fillol/Chronicle-Sniffer.git # Or your repo URL
+    cd Chronicle-Sniffer
     ```
 
 2.  **Build and Push the Processor Docker Image**:
+    (Skip if using a pre-built public image for the processor)
     Navigate to the `processor` directory and build the image, then push it to your Artifact Registry.
     ```bash
     cd processor
@@ -149,8 +151,8 @@ gcloud auth configure-docker REGION-docker.pkg.dev
     *   `gcp_project_id`
     *   `gcp_region`
     *   `incoming_pcap_bucket_name` and `processed_udm_bucket_name` (must be globally unique)
-    *   `processor_cloud_run_image` (the full URI of the image you just pushed)
-    *   `sniffer_image_uri` (e.g., `fillol/chronicle-sniffer:latest` or your own Artifact Registry sniffer image)
+    *   `processor_cloud_run_image` (the full URI of the image for the processor, e.g., the one you just pushed or a public one)
+    *   `sniffer_image_uri` (e.g., `fillol/chronicle-sniffer:latest` or your own Artifact Registry sniffer image if you built one)
     *   `ssh_source_ranges` for the test VM (e.g., `["YOUR_IP_ADDRESS/32"]`)
 
     Then, initialize and apply Terraform:
@@ -163,22 +165,20 @@ gcloud auth configure-docker REGION-docker.pkg.dev
     Confirm with `yes`. This will also deploy the operational dashboard.
 
 4.  **(Optional) Test VM & On-Premises Sniffer Setup**:
-    Terraform will output instructions (`test_vm_sniffer_setup_instructions`) on how to:
-    *   Generate an SA key for the sniffer (`generate_sniffer_key_command` output).
-    *   SSH into the test VM.
-    *   Copy the SA key to the VM.
-    *   Configure and run the sniffer Docker container on the VM.
-    *   Alternatively, to run the sniffer locally (not on the test VM):
-        ```bash
-        # From the project root, after generating sniffer-key.json from terraform output
-        mkdir -p sniffer/gcp-key
-        cp ./sniffer-key.json sniffer/gcp-key/key.json
-        cd sniffer
-        cp .env.example .env
-        # Edit .env with GCP_PROJECT_ID, INCOMING_BUCKET (from TF output), PUBSUB_TOPIC_ID (from TF output)
-        docker compose build # If you modified the sniffer Dockerfile
-        docker compose up -d
-        ```
+    Terraform will output `test_vm_sniffer_setup_instructions` on how to set up and run the sniffer on the provisioned test GCE VM. This involves generating an SA key, copying it to the VM, and then running `docker-compose` on the VM.
+
+    To run the sniffer **locally using Docker Compose** (e.g., on your development machine, not the test VM):
+    a.  Ensure you are in the project's root directory (`Chronicle-Sniffer/`).
+    b.  Generate the sniffer Service Account key if you haven't already (from Terraform output `generate_sniffer_key_command`). This creates `./sniffer-key.json` in the root.
+    c.  Navigate to the sniffer directory: `cd sniffer`
+    d.  Create the key directory: `mkdir -p gcp-key`
+    e.  Copy the generated key: `cp ../sniffer-key.json ./gcp-key/key.json` (This places the key from the project root into `sniffer/gcp-key/`)
+    f.  Create and configure your `.env` file from `.env.example`: `cp .env.example .env`
+        *   Edit `sniffer/.env` with your `GCP_PROJECT_ID`, `INCOMING_BUCKET` (from Terraform output), and `PUBSUB_TOPIC_ID` (from Terraform output, e.g., `projects/YOUR_PROJECT_ID/topics/YOUR_TOPIC_NAME`).
+    g.  (Optional) Create a directory for local captures if you want them persisted on your host: `mkdir captures` (the `sniffer/compose.yml` maps this).
+    h.  Build (if needed) and run the sniffer: `docker-compose up --build -d` (run this command from within the `sniffer/` directory).
+    i.  To see logs: `docker-compose logs -f` (from within the `sniffer/` directory, or specify service name).
+    j.  To stop: `docker-compose down` (from within the `sniffer/` directory).
 
 ## Testing the Cloud-Side Pipeline (Simulating the Sniffer)
 
@@ -259,9 +259,9 @@ This section guides you through testing the GCP processing pipeline (Pub/Sub, Cl
     3.  Automatically detects the primary active network interface (excluding loopback, docker, etc.).
     4.  Starts `tshark` in the background, configured to rotate capture files based on size or duration (env vars `ROTATE`, `LIMITS`).
     5.  Includes a background heartbeat function that logs `TSHARK_STATUS` (running/stopped) for monitoring.
-    6.  Continuously monitors the capture directory for newly closed (rotated) PCAP files.
+    6.  Continuously monitors the capture directory for newly closed (rotated) PCAP files (matching `*.pcap*` to include `.pcapng` format).
     7.  For each completed PCAP: logs its size, uploads it to the specified GCS `INCOMING_BUCKET`, publishes the filename as a message to `PUBSUB_TOPIC_ID`, and then removes the local PCAP file.
-    8.  Handles `SIGTERM` for graceful shutdown of `tshark` and the heartbeat process.
+    8.  Handles `SIGTERM` and `SIGINT` for graceful shutdown of `tshark` and the heartbeat process.
 
 ### Cloud Run Processor (`processor/`)
 
@@ -351,20 +351,20 @@ This project demonstrates several key concepts relevant to building scalable and
     4.  Run `terraform apply`. Alternatively, manually deploy a new revision in the Cloud Run console pointing to the new image tag.
 *   **Updating the Sniffer**:
     1.  Modify `sniffer_entrypoint.sh` or the sniffer `Dockerfile`.
-    2.  Rebuild and push the sniffer Docker image.
-    3.  Update the image reference on the host running the sniffer and restart.
+    2.  Rebuild and push the sniffer Docker image (e.g., to Docker Hub or your Artifact Registry).
+    3.  Update the image reference (`var.sniffer_image_uri` in `terraform.tfvars` if the test VM pulls it, and on any actual on-prem hosts) and restart the sniffer containers.
 *   **Scaling**:
     *   **Cloud Run Processor**: Adjust `cloud_run_memory`, `cloud_run_cpu`, and `max_instance_count` (via Terraform or Cloud Run console) for desired throughput.
     *   **Pub/Sub**: Modify subscription retry policies if needed.
 *   **Common Issues & Debugging**:
-    *   **Sniffer not uploading/publishing**: Check sniffer container logs. Verify SA key validity and permissions.
+    *   **Sniffer not uploading/publishing**: Check sniffer container logs. Verify SA key validity and permissions (especially Pub/Sub publisher role for the sniffer's SA).
     *   **Pub/Sub messages in DLQ or high unacked count**: Inspect Cloud Run processor logs. This usually points to issues in the processing scripts or GCS permissions for the Cloud Run SA.
     *   **UDM Conversion Errors**: Examine `json2udm_cloud.py stderr` messages in Cloud Run logs. Test locally with problematic JSON if possible.
-    *   **Terraform Apply Failures**: Read Terraform error messages. Validate `terraform.tfvars`. Ensure `gcloud` user has permissions.
+    *   **Terraform Apply Failures**: Read Terraform error messages. Validate `terraform.tfvars`. Ensure `gcloud` user has permissions to create/modify all resources.
     *   **Dashboard Widgets Empty/Erroring**:
-        *   Verify Log-Based Metrics are correctly defined in `terraform/main.tf` and are active in Cloud Monitoring.
-        *   Check if logs matching the LBM filters are being generated.
-        *   Use Metrics Explorer in Cloud Monitoring to test the MQL queries or inspect the raw metric data.
+        *   Verify Log-Based Metrics are correctly defined in `terraform/main.tf` and are active in Cloud Monitoring (Metrics Management).
+        *   Check if logs matching the LBM filters are being generated by the sniffer or processor.
+        *   Use Metrics Explorer in Cloud Monitoring to test the MQL queries or inspect the raw metric data for your custom LBMs.
         *   Ensure variable names in the dashboard JSON (`${cloud_run_processor_service_name}`, etc.) match those passed by the `templatefile` function in `terraform/main.tf`.
 
 ---
