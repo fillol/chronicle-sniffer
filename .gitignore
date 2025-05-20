@@ -1,6 +1,6 @@
-# sniffer/gcp-key/*
-# sniffer/.env
-# terraform/terraform.tfvars
-# terraform/terraform.tfstate*
-# terraform/.terraform.lock.hcl
-# terraform/.terraform/
+sniffer/gcp-key/*
+sniffer/.env
+terraform/terraform.tfvars
+terraform/terraform.tfstate*
+terraform/.terraform.lock.hcl
+terraform/.terraform/
