@@ -9,6 +9,7 @@ import tempfile
 import logging
 from flask import Flask, request, Response, jsonify
 from datetime import datetime, timezone # Added for latency measurement
+from google.api_core import exceptions as google_api_exceptions
 
 from google.cloud import storage
 
@@ -177,7 +178,7 @@ def process_pcap_notification():
             logging.info(f"Successfully processed {pcap_filename}")
             return Response(status=204) # OK, No Content for Pub/Sub ACK
 
-        except storage.exceptions.NotFound:
+        except google_api_exceptions.NotFound:
              logging.error(f"Error: pcap gs://{INCOMING_BUCKET_NAME}/{pcap_filename} not found.", exc_info=False)
              return Response(status=204) # ACK Pub/Sub (don't retry for non-existent file)
         except subprocess.CalledProcessError as e:
