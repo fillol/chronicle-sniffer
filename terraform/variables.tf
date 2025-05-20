@@ -66,9 +66,9 @@ variable "cloud_run_cpu" {
 }
 
 variable "cloud_run_memory" {
-  description = "Memoria per istanza Cloud Run (es. 512Mi)."
+  description = "Memoria per istanza Cloud Run (es. 1Gi)."
   type        = string
-  default     = "512Mi"
+  default     = "1Gi"
 }
 
 variable "ssh_source_ranges" {
