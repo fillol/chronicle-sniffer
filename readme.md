@@ -5,12 +5,8 @@
   <a href="https://www.docker.com/" target="_blank"><img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker"></a>
   <a href="https://www.python.org/" target="_blank"><img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
   <a href="https://www.wireshark.org/docs/man-pages/tshark.html" target="_blank"><img src="https://img.shields.io/badge/TShark-1679A7?style=flat&logo=wireshark&logoColor=white" alt="TShark"></a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/fillol/Chronicle-Sniffer?style=flat" alt="Licenza: MIT">
-  </a>
-  <a href="https://hub.docker.com/r/fillol/chronicle-sniffer" target="_blank">
-    <img src="https://img.shields.io/badge/Docker_Hub-fillol%2Fchronicle--sniffer-0094D6?style=flat&logo=docker" alt="Docker Hub: fillol/chronicle-sniffer">
-  </a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/fillol/Chronicle-Sniffer?style=flat" alt="Licenza: MIT"></a>
+  <a href="https://hub.docker.com/r/fillol/chronicle-sniffer" target="_blank"><img src="https://img.shields.io/badge/Docker_Hub-fillol%2Fchronicle--sniffer-0094D6?style=flat&logo=docker" alt="Docker Hub: fillol/chronicle-sniffer"></a>
 </p>
 
 
