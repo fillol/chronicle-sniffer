@@ -115,17 +115,15 @@ module "test_generator_vm" {
 // Configures IAM policies to grant necessary permissions to Service Accounts.
 
 // IAM for Sniffer Service Account (used via downloaded key):
-// Grants permission to write .pcap files to the incoming GCS bucket.
-// Publisher role for Pub/Sub is also required but might be granted manually or to the user/SA running the sniffer setup.
-// If the sniffer_sa itself needs to publish, uncomment the pubsub_publisher block.
-/*
-resource "google_pubsub_topic_iam_member" "sniffer_sa_pubsub_publisher" {
-  project = var.gcp_project_id
-  topic   = module.pubsub_topic.topic_id
-  role    = "roles/pubsub.publisher"
-  member  = "serviceAccount:${google_service_account.sniffer_sa.email}"
-}
-*/
+// Grants permission to write .pcap files to the incoming GCS bucket and to publish notifications to the Topic.
+
+# resource "google_pubsub_topic_iam_member" "sniffer_sa_pubsub_publisher" {
+#   project = var.gcp_project_id
+#   topic   = module.pubsub_topic.topic_id
+#   role    = "roles/pubsub.publisher"
+#   member  = "serviceAccount:${google_service_account.sniffer_sa.email}"
+# }
+
 resource "google_storage_bucket_iam_member" "sniffer_sa_gcs_writer" {
   bucket = module.gcs_buckets.incoming_pcap_bucket_id
   role   = "roles/storage.objectCreator" // Allows creating objects in the bucket
