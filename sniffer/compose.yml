@@ -1,9 +1,9 @@
 services:
   sniffer:
+    image: fillol/chronicle-sniffer:latest
     build:
       context: .
-    # image: fillol/chronicle-sniffer:latest # Or your preferred pre-built image
-    container_name: chronicle-sniffer-instance
+    container_name: chronicle-sniffer
     restart: unless-stopped
     env_file:
       - .env
