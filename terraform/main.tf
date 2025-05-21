@@ -310,90 +310,90 @@ resource "google_logging_metric" "pcap_upload_errors_metric" {
   }
 }
 
-// Processor UDM Packets Processed Metric: Distribution of UDM packets processed per file.
-resource "google_logging_metric" "processor_udm_packets_processed_metric" {
-  project     = var.gcp_project_id
-  name        = "processor_udm_packets_processed_count"
-  filter      = "resource.type=\"cloud_run_revision\" AND logName=~\"projects/${var.gcp_project_id}/logs/run.googleapis.com%2Fstdout\" AND textPayload=~\"json2udm_cloud.py (stdout|stderr):.*UDM_PACKETS_PROCESSED:\""
-  description = "Distribution of UDM packets successfully processed into UDM events by the processor per file."
+# // Processor UDM Packets Processed Metric: Distribution of UDM packets processed per file.
+# resource "google_logging_metric" "processor_udm_packets_processed_metric" {
+#   project     = var.gcp_project_id
+#   name        = "processor_udm_packets_processed_count"
+#   filter      = "resource.type=\"cloud_run_revision\" AND logName=~\"projects/${var.gcp_project_id}/logs/run.googleapis.com%2Fstdout\" AND textPayload=~\"json2udm_cloud.py (stdout|stderr):.*UDM_PACKETS_PROCESSED:\""
+#   description = "Distribution of UDM packets successfully processed into UDM events by the processor per file."
 
-  metric_descriptor {
-    metric_kind  = "DELTA"
-    value_type   = "DISTRIBUTION"
-    unit         = "1"
-    display_name = "Processor UDM Packets Processed"
-    labels {
-      key         = "filename"
-      value_type  = "STRING"
-      description = "Name of the source JSON file processed"
-    }
-  }
-  bucket_options {
-    exponential_buckets {
-      num_finite_buckets = 20
-      growth_factor      = 2
-      scale              = 1
-    }
-  }
-  value_extractor = "REGEXP_EXTRACT(textPayload, \"UDM_PACKETS_PROCESSED: ([0-9]+)\")"
-  label_extractors = {
-    "filename" = "REGEXP_EXTRACT(textPayload, \"UDM_PACKETS_PROCESSED: [0-9]+ FILE: ([^\\\\s]+)\")" // Corretto qui
-  }
-}
+#   metric_descriptor {
+#     metric_kind  = "DELTA"
+#     value_type   = "DISTRIBUTION"
+#     unit         = "1"
+#     display_name = "Processor UDM Packets Processed"
+#     labels {
+#       key         = "filename"
+#       value_type  = "STRING"
+#       description = "Name of the source JSON file processed"
+#     }
+#   }
+#   bucket_options {
+#     exponential_buckets {
+#       num_finite_buckets = 20
+#       growth_factor      = 2
+#       scale              = 1
+#     }
+#   }
+#   value_extractor = "REGEXP_EXTRACT(textPayload, \"UDM_PACKETS_PROCESSED: ([0-9]+)\")"
+#   label_extractors = {
+#     "filename" = "REGEXP_EXTRACT(textPayload, \"UDM_PACKETS_PROCESSED: [0-9]+ FILE: ([^\\\\s]+)\")" // Corretto qui
+#   }
+# }
 
 // Sniffer TShark Status Running Count Metric: Counts logs indicating tshark is running.
-resource "google_logging_metric" "sniffer_tshark_status_running_count" {
-  project     = var.gcp_project_id
-  name        = "sniffer_tshark_status_running_count"
-  filter      = "resource.type=(\"gce_instance\" OR \"k8s_container\" OR \"global\") AND textPayload:\"TSHARK_STATUS: running\" AND textPayload:\"(ID: \""
-  description = "Counts when tshark is reported as running by a sniffer."
+# resource "google_logging_metric" "sniffer_tshark_status_running_count" {
+#   project     = var.gcp_project_id
+#   name        = "sniffer_tshark_status_running_count"
+#   filter      = "resource.type=(\"gce_instance\" OR \"k8s_container\" OR \"global\") AND textPayload:\"TSHARK_STATUS: running\" AND textPayload:\"(ID: \""
+#   description = "Counts when tshark is reported as running by a sniffer."
 
-  metric_descriptor {
-    metric_kind  = "DELTA"
-    value_type   = "INT64"
-    unit         = "1"
-    display_name = "Sniffer TShark Running Status"
-    labels {
-      key         = "sniffer_id"
-      value_type  = "STRING"
-      description = "Unique identifier of the sniffer instance"
-    }
-  }
-  label_extractors = {
-    "sniffer_id" = "REGEXP_EXTRACT(textPayload, \"\\\\(ID: ([^)]+)\\\\)\")"
-  }
-}
+#   metric_descriptor {
+#     metric_kind  = "DELTA"
+#     value_type   = "INT64"
+#     unit         = "1"
+#     display_name = "Sniffer TShark Running Status"
+#     labels {
+#       key         = "sniffer_id"
+#       value_type  = "STRING"
+#       description = "Unique identifier of the sniffer instance"
+#     }
+#   }
+#   label_extractors = {
+#     "sniffer_id" = "REGEXP_EXTRACT(textPayload, \"\\\\(ID: ([^)]+)\\\\)\")"
+#   }
+# }
 
 // PCAP File Size Metric: Distribution of uploaded PCAP file sizes by sniffers.
-resource "google_logging_metric" "pcap_file_size_metric" {
-  project     = var.gcp_project_id
-  name        = "pcap_file_size_bytes"
-  filter      = "resource.type=(\"gce_instance\" OR \"k8s_container\" OR \"global\") AND textPayload:\"PCAP_SIZE_BYTES:\" AND textPayload:\"(ID: \""
-  description = "Distribution of uploaded PCAP file sizes in bytes."
+# resource "google_logging_metric" "pcap_file_size_metric" {
+#   project     = var.gcp_project_id
+#   name        = "pcap_file_size_bytes"
+#   filter      = "resource.type=(\"gce_instance\" OR \"k8s_container\" OR \"global\") AND textPayload:\"PCAP_SIZE_BYTES:\" AND textPayload:\"(ID: \""
+#   description = "Distribution of uploaded PCAP file sizes in bytes."
 
-  metric_descriptor {
-    metric_kind  = "DELTA"
-    value_type   = "DISTRIBUTION"
-    unit         = "By"
-    display_name = "PCAP File Size"
-    labels {
-      key         = "sniffer_id"
-      value_type  = "STRING"
-      description = "Unique identifier of the sniffer instance"
-    }
-  }
-  bucket_options {
-    linear_buckets {
-      num_finite_buckets = 20
-      width              = 1048576
-      offset             = 0
-    }
-  }
-  value_extractor = "REGEXP_EXTRACT(textPayload, \"PCAP_SIZE_BYTES: ([0-9]+)\")"
-  label_extractors = {
-    "sniffer_id" = "REGEXP_EXTRACT(textPayload, \"\\\\(ID: ([^)]+)\\\\)\")"
-  }
-}
+#   metric_descriptor {
+#     metric_kind  = "DELTA"
+#     value_type   = "DISTRIBUTION"
+#     unit         = "By"
+#     display_name = "PCAP File Size"
+#     labels {
+#       key         = "sniffer_id"
+#       value_type  = "STRING"
+#       description = "Unique identifier of the sniffer instance"
+#     }
+#   }
+#   bucket_options {
+#     linear_buckets {
+#       num_finite_buckets = 20
+#       width              = 1048576
+#       offset             = 0
+#     }
+#   }
+#   value_extractor = "REGEXP_EXTRACT(textPayload, \"PCAP_SIZE_BYTES: ([0-9]+)\")"
+#   label_extractors = {
+#     "sniffer_id" = "REGEXP_EXTRACT(textPayload, \"\\\\(ID: ([^)]+)\\\\)\")"
+#   }
+# }
 
 // Pub/Sub Publish Errors Metric: Counts errors when sniffers fail to publish notifications.
 resource "google_logging_metric" "pubsub_publish_errors_metric" {
@@ -479,35 +479,35 @@ resource "google_logging_metric" "tshark_conversion_error_processor" {
 }
 
 // Processor UDM Packet Processing Errors Metric: Distribution of packets that errored during UDM conversion.
-resource "google_logging_metric" "udm_packet_processing_errors" {
-  project     = var.gcp_project_id
-  name        = "processor_udm_packet_errors_count"
-  filter      = "resource.type=\"cloud_run_revision\" AND logName=~\"projects/${var.gcp_project_id}/logs/run.googleapis.com%2Fstdout\" AND textPayload=~\"json2udm_cloud.py (stdout|stderr):.*UDM_PACKET_ERRORS:\""
-  description = "Distribution of packets that resulted in an error during UDM conversion per file."
+# resource "google_logging_metric" "udm_packet_processing_errors" {
+#   project     = var.gcp_project_id
+#   name        = "processor_udm_packet_errors_count"
+#   filter      = "resource.type=\"cloud_run_revision\" AND logName=~\"projects/${var.gcp_project_id}/logs/run.googleapis.com%2Fstdout\" AND textPayload=~\"json2udm_cloud.py (stdout|stderr):.*UDM_PACKET_ERRORS:\""
+#   description = "Distribution of packets that resulted in an error during UDM conversion per file."
 
-  metric_descriptor {
-    metric_kind  = "DELTA"
-    value_type   = "DISTRIBUTION"
-    unit         = "1"
-    display_name = "Processor UDM Packet Errors"
-    labels {
-      key         = "filename"
-      value_type  = "STRING"
-      description = "Name of the source JSON file with packet errors"
-    }
-  }
-  value_extractor = "REGEXP_EXTRACT(textPayload, \"UDM_PACKET_ERRORS: ([0-9]+)\")"
-  bucket_options {
-    linear_buckets {
-      num_finite_buckets = 10
-      width              = 1
-      offset             = 0
-    }
-  }
-  label_extractors = {
-    "filename" = "REGEXP_EXTRACT(textPayload, \"UDM_PACKET_ERRORS: [0-9]+ FILE: ([^\\\\s]+)\")" // Corretto qui
-  }
-}
+#   metric_descriptor {
+#     metric_kind  = "DELTA"
+#     value_type   = "DISTRIBUTION"
+#     unit         = "1"
+#     display_name = "Processor UDM Packet Errors"
+#     labels {
+#       key         = "filename"
+#       value_type  = "STRING"
+#       description = "Name of the source JSON file with packet errors"
+#     }
+#   }
+#   value_extractor = "REGEXP_EXTRACT(textPayload, \"UDM_PACKET_ERRORS: ([0-9]+)\")"
+#   bucket_options {
+#     linear_buckets {
+#       num_finite_buckets = 10
+#       width              = 1
+#       offset             = 0
+#     }
+#   }
+#   label_extractors = {
+#     "filename" = "REGEXP_EXTRACT(textPayload, \"UDM_PACKET_ERRORS: [0-9]+ FILE: ([^\\\\s]+)\")" // Corretto qui
+#   }
+# }
 
 // Processor UDM Upload Success Metric: Counts successful UDM file uploads.
 resource "google_logging_metric" "udm_upload_success_processor" {
@@ -561,16 +561,16 @@ resource "google_monitoring_dashboard" "main_operational_dashboard" {
   depends_on = [ // Ensure metrics are created before the dashboard attempts to use them.
     google_logging_metric.sniffer_heartbeat_metric,
     google_logging_metric.pcap_files_uploaded_metric,
-    google_logging_metric.processor_udm_packets_processed_metric,
+    // google_logging_metric.processor_udm_packets_processed_metric, // RIMOSSO
     google_logging_metric.pcap_upload_errors_metric,
-    google_logging_metric.sniffer_tshark_status_running_count,
-    google_logging_metric.pcap_file_size_metric,
+    // google_logging_metric.sniffer_tshark_status_running_count,    // RIMOSSO
+    // google_logging_metric.pcap_file_size_metric,                  // RIMOSSO
     google_logging_metric.pubsub_publish_errors_metric,
     google_logging_metric.pcap_download_success_processor,
     google_logging_metric.pcap_download_notfound_processor,
     google_logging_metric.tshark_conversion_success_processor,
     google_logging_metric.tshark_conversion_error_processor,
-    google_logging_metric.udm_packet_processing_errors,
+    // google_logging_metric.udm_packet_processing_errors,           // RIMOSSO
     google_logging_metric.udm_upload_success_processor,
     google_logging_metric.processor_pcap_latency
   ]
