@@ -117,12 +117,12 @@ module "test_generator_vm" {
 // IAM for Sniffer Service Account (used via downloaded key):
 // Grants permission to write .pcap files to the incoming GCS bucket and to publish notifications to the Topic.
 
-# resource "google_pubsub_topic_iam_member" "sniffer_sa_pubsub_publisher" {
-#   project = var.gcp_project_id
-#   topic   = module.pubsub_topic.topic_id
-#   role    = "roles/pubsub.publisher"
-#   member  = "serviceAccount:${google_service_account.sniffer_sa.email}"
-# }
+resource "google_pubsub_topic_iam_member" "sniffer_sa_pubsub_publisher" {
+  project = var.gcp_project_id
+  topic   = module.pubsub_topic.topic_id
+  role    = "roles/pubsub.publisher"
+  member  = "serviceAccount:${google_service_account.sniffer_sa.email}"
+}
 
 resource "google_storage_bucket_iam_member" "sniffer_sa_gcs_writer" {
   bucket = module.gcs_buckets.incoming_pcap_bucket_id
