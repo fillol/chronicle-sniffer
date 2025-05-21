@@ -79,13 +79,11 @@ To run the sniffer, follow these steps:
 
 3.  COPY THE SA KEY TO THE VM (from a NEW terminal on YOUR LOCAL MACHINE):
     The VM's startup script has created the directory '/opt/gcp_sa_keys/sniffer' with open permissions.
-    Copy the 'sniffer-key.json' file (generated in step 1) to this directory on the VM,
-    ensuring it is named 'key.json':
+    Copy the 'sniffer-key.json' file (generated in step 1) to this directory on the VM, ensuring it is named 'key.json':
 
     gcloud compute scp ./sniffer-key.json ${module.test_generator_vm.vm_name}:/opt/gcp_sa_keys/sniffer/key.json --project ${var.gcp_project_id} --zone ${module.test_generator_vm.vm_zone}
 
-    (Note: If you encounter permission issues with 'gcloud compute scp' directly to /opt/,
-     you can first copy the key to the VM's home directory:
+    (Note: If you encounter permission issues with 'gcloud compute scp' directly to /opt/, you can first copy the key to the VM's home directory:
        gcloud compute scp ./sniffer-key.json ${module.test_generator_vm.vm_name}:~/sniffer-key.json --project ${var.gcp_project_id} --zone ${module.test_generator_vm.vm_zone}
      Then, connect to the VM via SSH (step 2) and move the file:
        sudo mv ~/sniffer-key.json /opt/gcp_sa_keys/sniffer/key.json
@@ -97,9 +95,8 @@ To run the sniffer, follow these steps:
     sudo docker-compose up -d
 
 5.  CHECK SNIFFER LOGS (inside the SSH session on the VM):
-    sudo docker logs chronicle-sniffer-instance -f
-    You should see logs indicating the activation of the SA '${google_service_account.sniffer_sa.email}'
-    and tshark starting its capture.
+    sudo docker logs chronicle-sniffer -f
+    You should see logs indicating the activation of the SA '${google_service_account.sniffer_sa.email}' and tshark starting its capture.
 
 6.  GENERATE NETWORK TRAFFIC ON THE VM FOR TESTING (inside the SSH session):
     ping -c 20 google.com
