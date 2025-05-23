@@ -31,6 +31,28 @@ This project implements a robust, scalable, and event-driven pipeline to capture
 
 ---
 
+## Table of Contents
+
+- [Key Features & Enhancements](#key-features--enhancements)
+- [Architecture Overview](#architecture-overview)
+- [From Local Batch to Cloud-Native Streaming](#from-local-batch-to-cloud-native-streaming)
+- [Repository Layout](#repository-layout)
+- [Implementation Details](#implementation-details)
+  - [Terraform Modules](#terraform-modules)
+  - [Sniffer Container (`sniffer/`)](#sniffer-container-sniffer)
+  - [Cloud Run Processor (`processor/`)](#cloud-run-processor-processor)
+  - [Observable System: Logging, Metrics, and Dashboard](#observable-system-logging-metrics-and-dashboard)
+- [How to Use](#how-to-use)
+  - [Prerequisites](#prerequisites)
+  - [Environment Setup](#environment-setup)
+  - [Quickstart Deployment](#quickstart-deployment)
+  - [Testing the Cloud-Side Pipeline (Simulating the Sniffer)](#testing-the-cloud-side-pipeline-simulating-the-sniffer)
+- [Educational Value & Cloud-Native Principles](#educational-value--cloud-native-principles)
+- [Security Considerations](#security-considerations)
+- [Maintenance & Troubleshooting](#maintenance--troubleshooting)
+
+---
+
 ## Architecture Overview
 
 The system employs a distributed, event-driven architecture:
