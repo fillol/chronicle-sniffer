@@ -51,7 +51,6 @@ This project implements a robust, scalable, and event-driven pipeline to capture
 - [Security Considerations](#security-considerations)
 - [Maintenance & Troubleshooting](#maintenance--troubleshooting)
 
----
 
 ## Architecture Overview
 
@@ -123,8 +122,6 @@ Chronicle-Sniffer/
 ├── LICENSE                         # MIT License
 └── readme.md                       # This file (main project README)
 ```
-
----
 
 ## Implementation Details
 
