@@ -16,7 +16,7 @@ This directory contains sample files and artifacts useful for testing and unders
 
 3.  **`gcp_conversion_log_snippet.png`**:
     *   A screenshot showing a snippet of logs from Google Cloud Logging.
-    *   This snippet highlights key log messages 얼굴indicating a successful conversion of the test PCAP file (`synflood_capture.pcap`) through the Cloud Run processor service.
+    *   This snippet highlights key log messages indicating a successful conversion of the test PCAP file (`synflood_capture.pcap`) through the Cloud Run processor service.
     *   It demonstrates that the pipeline can process the sample file and generate the expected UDM output in the GCP environment.
   
 4.  **`broken_capture.pcap`**:
