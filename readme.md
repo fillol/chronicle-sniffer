@@ -9,7 +9,6 @@
   <a href="https://hub.docker.com/r/fillol/chronicle-sniffer" target="_blank"><img src="https://img.shields.io/badge/Docker_Hub-fillol%2Fchronicle--sniffer-0094D6?style=flat&logo=docker" alt="Docker Hub: fillol/chronicle-sniffer"></a>
 </p>
 
-
 A Scalable Wireshark-to-SecOps Pipeline on Google Cloud Platform  
 
 **Author:** [Filippo Lucchesi](https://github.com/fillol)  
@@ -46,11 +45,9 @@ This project implements a robust, scalable, and event-driven pipeline to capture
   - [Prerequisites](#prerequisites)
   - [Environment Setup](#environment-setup)
   - [Quickstart Deployment](#quickstart-deployment)
-  - [Testing the Cloud-Side Pipeline (Simulating the Sniffer)](#testing-the-cloud-side-pipeline-simulating-the-sniffer)
 - [Educational Value & Cloud-Native Principles](#educational-value--cloud-native-principles)
 - [Security Considerations](#security-considerations)
 - [Maintenance & Troubleshooting](#maintenance--troubleshooting)
-
 
 ## Architecture Overview
 
@@ -294,67 +291,6 @@ gcloud auth configure-docker REGION-docker.pkg.dev
     h.  Build (if needed) and run the sniffer: `docker-compose up --build -d` (run this command from within the `sniffer/` directory).
     i.  To see logs: `docker-compose logs -f` (from within the `sniffer/` directory, or specify service name).
     j.  To stop: `docker-compose down` (from within the `sniffer/` directory).
-
-
-### Testing the Cloud-Side Pipeline (Simulating the Sniffer)
-
-This section guides you through testing the GCP processing pipeline (Pub/Sub, Cloud Run, GCS) without running the actual on-premises sniffer. This is useful for validating the cloud components independently.
-
-**Assumptions:**
-1.  You have a sample `.pcap` file (e.g., `sample.pcap`) ready locally.
-2.  Your `gcloud` CLI is authenticated with a user account that has at least `roles/pubsub.publisher` on the topic and `roles/storage.objectCreator` on the incoming GCS bucket.
-3.  The Terraform infrastructure has been successfully deployed (`terraform apply` completed).
-
-**Steps:**
-
-1.  **Upload the Sample PCAP to the Incoming GCS Bucket:**
-    Use `gsutil` to upload your test PCAP file. The filename in the bucket will be used in the Pub/Sub message.
-    ```bash
-    # Ensure gsutil uses the correct project
-    gcloud config set project YOUR_PROJECT_ID
-
-    # Replace 'path/to/your/sample.pcap' and ensure the bucket name matches your terraform.tfvars
-    gsutil cp path/to/your/sample.pcap gs://YOUR_INCOMING_PCAP_BUCKET_NAME/sample.pcap
-    ```
-    *Example bucket name: `gs://chronicle-sniffer-incoming-pcaps/sample.pcap`*
-
-2.  **Publish a Message to the Pub/Sub Topic:**
-    The message payload should be the exact filename of the PCAP you uploaded to GCS.
-    ```bash
-    PCAP_FILENAME_IN_BUCKET="sample.pcap" # Must match the filename used in 'gsutil cp'
-    TOPIC_ID=$(terraform output -raw pubsub_topic_id) # Get topic ID from Terraform output
-
-    gcloud pubsub topics publish "${TOPIC_ID}" \
-      --message "${PCAP_FILENAME_IN_BUCKET}"
-    ```
-    If successful, `gcloud` will output a `messageIds` field.
-
-3.  **Verify Processing and Output:**
-    *   **Cloud Run Logs**:
-        *   Navigate to your Cloud Run service (`chronicle-sniffer-processor` or similar, based on `var.base_name`) in the GCP Console.
-        *   Go to the "Logs" tab.
-        *   Look for logs indicating:
-            *   Reception of the Pub/Sub message for `sample.pcap`.
-            *   Download from the incoming GCS bucket.
-            *   `tshark` conversion to JSON.
-            *   `json2udm_cloud.py` script execution and UDM conversion.
-            *   Upload of the UDM JSON to the processed GCS bucket.
-            *   Successful completion message.
-    *   **Processed UDM GCS Bucket**:
-        *   Navigate to Cloud Storage in the GCP Console.
-        *   Open your "processed-udm" bucket (e.g., `chronicle-sniffer-processed-udm` or similar).
-        *   You should find a file named `sample.udm.json` (or similar, based on your PCAP filename).
-        *   Download and inspect this file to ensure it contains valid UDM JSON.
-
-**Troubleshooting this Test:**
-*   **Pub/Sub Message Not Delivered or Cloud Run Not Invoked**:
-    *   Check the Pub/Sub subscription (e.g., `chronicle-sniffer-processor-sub`) for unacked messages or errors.
-    *   Verify the push endpoint URL and OIDC authentication settings on the subscription.
-    *   Ensure the Cloud Run service invoker permissions are correctly set (should be the `cloud_run_sa` if using OIDC, or `allUsers` if `allow_unauthenticated_invocations` was true during Terraform apply).
-*   **Cloud Run Errors during Processing**:
-    *   **File Not Found (404) from GCS**: Double-check that `PCAP_FILENAME_IN_BUCKET` in your `gcloud pubsub publish` command exactly matches the name of the file you uploaded with `gsutil`.
-    *   **`tshark` or `json2udm_cloud.py` errors**: Examine the Cloud Run logs for detailed error messages or stack traces from these scripts. This might indicate issues with the PCAP file itself or bugs in the conversion logic.
-    *   **Permission Errors (403) from GCS for Cloud Run SA**: Ensure the `cloud_run_sa` (e.g., `chronicle-sniffer-run-sa@...`) has the necessary roles (`storage.objectViewer` on incoming bucket, `storage.objectAdmin` or `storage.objectCreator` + delete on processed bucket, and `storage.legacyBucketReader` on both for startup checks). Terraform should manage this.
 
 ---
 
