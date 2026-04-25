@@ -1,19 +1,4 @@
-# Chronicle-Sniffer  
-<p align="left">
-  <a href="https://cloud.google.com/" target="_blank"><img src="https://img.shields.io/badge/GCP-Google_Cloud-4285F4?style=flat&logo=google-cloud" alt="GCP"></a>
-  <a href="https://www.terraform.io/" target="_blank"><img src="https://img.shields.io/badge/Terraform-7B42BC?style=flat&logo=terraform" alt="Terraform"></a>
-  <a href="https://www.docker.com/" target="_blank"><img src="https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white" alt="Docker"></a>
-  <a href="https://www.python.org/" target="_blank"><img src="https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white" alt="Python"></a>
-  <a href="https://www.wireshark.org/docs/man-pages/tshark.html" target="_blank"><img src="https://img.shields.io/badge/TShark-1679A7?style=flat&logo=wireshark&logoColor=white" alt="TShark"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/fillol/Chronicle-Sniffer?style=flat" alt="Licenza: MIT"></a>
-  <a href="https://hub.docker.com/r/fillol/chronicle-sniffer" target="_blank"><img src="https://img.shields.io/badge/Docker_Hub-fillol%2Fchronicle--sniffer-0094D6?style=flat&logo=docker" alt="Docker Hub: fillol/chronicle-sniffer"></a>
-</p>
-
-A Scalable Wireshark-to-SecOps Pipeline on Google Cloud Platform  
-
-**Author:** [Filippo Lucchesi](https://github.com/fillol)  
-**Course:** [Scalable and Reliable Services](https://www.unibo.it/en/study/course-units-transferable-skills-moocs/course-unit-catalogue/course-unit/2024/472686), [University of Bologna](https://www.unibo.it)  
-**Evolution of:** [Wireshark-to-Chronicle-Pipeline (Cybersecurity Projects 2024)](https://github.com/fillol/Wireshark-to-Chronicle-Pipeline)  
+# Scalable Wireshark-to-SecOps Pipeline on GCP
 
 This project implements a robust, scalable, and event-driven pipeline to capture network traffic using `tshark`, process it, and transform it into the Unified Data Model (UDM) for security analytics, all orchestrated on Google Cloud Platform (GCP) using Terraform. It evolves from an initial local processing concept into a cloud-native solution designed for enhanced reliability and scalability.
 
